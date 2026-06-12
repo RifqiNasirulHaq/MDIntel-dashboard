@@ -470,41 +470,40 @@ const EXCLUDED_SKU = new Set([
 ]);
 
 // ═══════════════════════════════════
-// LOGIKA KONDISI (revisi final)
+// LOGIKA KONDISI (revisi final v2)
 //
-// Hierarki:
-//   D (Idle)      : stok ADA tapi TIDAK ada penjualan sama sekali (qty=0 & avg5w=0 & avg2026=0)
-//   C (Replenish) : demand ADA (qty>0 atau avg2026>0) tapi stok habis ATAU WC kritis
-//   B (Push)      : stok berlebih (WC > threshold)
+// Sumber data per SKU:
+//   qty        : total penjualan YTD (dari tab dashboard) — sinyal demand paling reliable
+//   avg5w      : rata-rata penjualan 5 minggu terakhir (dari intake, week terbaru)
+//   avg_2026   : sum sale week terbaru (dari intake — sebagai proxy aktivitas terkini)
+//   avail      : stok tersedia saat ini (dari intake, week terbaru)
+//   wc         : weeks cover (dari intake, week terbaru)
+//
+// Hierarki kondisi:
+//   D (Idle)      : stok ADA, tidak ada penjualan sama sekali sepanjang tahun
+//   C (Replenish) : ada riwayat penjualan (demand ada) tapi stok habis atau WC kritis
+//   B (Push)      : stok berlebih relatif terhadap kecepatan jual
 //   A (Maintain)  : kondisi sehat
-//
-// Sinyal demand menggunakan: avg5w, avg_2026, DAN qty dari dashboard
-// (qty adalah total penjualan YTD — lebih reliable dari avg yang bisa 0 karena stockout)
 // ═══════════════════════════════════
 function deriveCondition(row) {
   const { wc, avg5w, avg_2026, avail, qty } = row;
 
-  // Demand ada jika salah satu sinyal positif
-  const demandAda = (avg5w > 0) || (avg_2026 >= AVG26_MIN) || (qty >= 10);
+  // Demand ada jika ada riwayat penjualan (qty adalah total YTD — tidak bisa 0 karena stockout)
+  const demandAda = qty >= 10;
 
-  // ── Kondisi D (Idle): stok ada, demand tidak ada ──
-  // Syarat: avail > 0 DAN tidak ada sinyal demand sama sekali
+  // ── D (Idle): stok ada tapi tidak pernah terjual sepanjang tahun ──
   if (avail > 0 && !demandAda) return 'D';
 
-  // ── Kondisi C (Replenish): demand ada, stok tidak cukup ──
-  // C.1: stok = 0 tapi demand ada → sudah stockout
-  if (avail === 0 && demandAda) return 'C';
+  // ── C (Replenish): demand ada tapi stok tidak cukup ──
+  if (demandAda && avail === 0)                          return 'C'; // stockout
+  if (demandAda && wc > 0 && wc < WC_KRITIS)            return 'C'; // hampir habis
+  if (demandAda && avg5w > 0 && avg_2026 > 0 &&
+      (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C'; // drop tajam
 
-  // C.2: WC sangat kritis (< 2 minggu) tapi masih ada sedikit stok
-  if (wc > 0 && wc < WC_KRITIS && demandAda) return 'C';
-
-  // C.3: avg5w jauh di bawah avg2026 (drop >65%) DAN WC kritis → stockout-driven
-  if (avg5w > 0 && avg_2026 > 0 && (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C';
-
-  // ── Kondisi B (Push): stok berlebih ──
+  // ── B (Push): stok berlebih ──
   if (wc > WC_AMAN_MAX) return 'B';
 
-  // ── Kondisi A (Maintain): semua sehat ──
+  // ── A (Maintain): sehat ──
   return 'A';
 }
 
@@ -607,62 +606,111 @@ async function loadData() {
     if (Object.keys(dashMap).length === 0)
       throw new Error('Tidak ada data SKU di tab dashboard (rank 1–300).');
 
-    // ── PARSE TAB INTAKE_CONTROL: avail, avg26, avg5w, WC, restock ──
-    // Header intake_control biasanya ada di baris pertama yang mengandung "SKU" dan "avg"
-    const ihi = findHeaderRow(intakeRows, 'sku', 'avg');
+    // ── PARSE TAB INTAKE_CONTROL (format wide/pivot) ──
+    //
+    // Struktur 2 baris header:
+    //   Baris 0 (row header 1): No. | SKU | W23 | start date | end date | W24 | ...
+    //                            setiap week-block punya 5 kolom: Avail, SumSale, Avg5Wk, WksCover, Restock
+    //   Baris 1 (row header 2): #   | SKU/Product Code | Avail Stock | Sum Sale | Avg Sale 5Wk | Wks Cover | Restock Needed | (ulang)
+    //
+    // Strategi: baca baris header 1 untuk tahu posisi week-number,
+    //           baca baris header 2 untuk tahu posisi sub-kolom,
+    //           ambil week terbesar (paling kanan) sebagai data terkini.
+
     const intakeMap = {};
 
-    if (ihi >= 0) {
-      const ihdr = intakeRows[ihi].map(c => c.toLowerCase().trim());
-      // Deteksi posisi kolom secara dinamis
-      let iSku     = ihdr.findIndex(c => /^sku$/.test(c));
-      let iAvail   = ihdr.findIndex(c => /avail|stock/i.test(c));
-      let iAvg26   = ihdr.findIndex(c => /avg.*2026|2026.*avg/i.test(c));
-      let iAvg5w   = ihdr.findIndex(c => /avg.*5|5.*wk|5w/i.test(c));
-      let iWc      = ihdr.findIndex(c => /wk.*cover|week.*cover|^wc$|wks/i.test(c));
-      let iRestock = ihdr.findIndex(c => /restock|intake|needed/i.test(c));
-      // Fallback ke posisi kolom yang diketahui dari struktur intake_control
-      if (iSku     < 0) iSku     = 1;
-      if (iAvail   < 0) iAvail   = 2;
-      if (iAvg26   < 0) iAvg26   = 3;
-      if (iAvg5w   < 0) iAvg5w   = 4;
-      if (iWc      < 0) iWc      = 5;
-      if (iRestock < 0) iRestock = 6;
+    // Temukan baris yang mengandung angka week (isoweek) di header baris 1
+    // Cirinya: kolom B = "SKU" dan ada kolom berisi angka 1-53
+    let weekHeaderRow = -1;
+    let dataSubHeaderRow = -1;
+    for (let i = 0; i < Math.min(intakeRows.length, 10); i++) {
+      const r = intakeRows[i];
+      const hasSkuCol = r.some(c => /sku|product code/i.test(c));
+      const hasWeekNum = r.some(c => /^\d{1,2}$/.test((c||'').trim()) && parseInt(c) >= 1 && parseInt(c) <= 53);
+      if (hasSkuCol && hasWeekNum) { weekHeaderRow = i; break; }
+    }
 
-      for (let i = ihi + 1; i < intakeRows.length; i++) {
-        const r = intakeRows[i];
-        const skuRaw = (r[iSku] || '').trim();
-        if (!skuRaw) continue;
-        intakeMap[skuRaw.toUpperCase()] = {
-          avail   : parseID(r[iAvail]),
-          avg_2026: parseID(r[iAvg26]),
-          avg5w   : parseID(r[iAvg5w]),
-          wc      : parseID(r[iWc]),
-          restock : parseID(r[iRestock]),
-        };
+    if (weekHeaderRow >= 0) {
+      // Baris sub-header (baris berikutnya: Avail Stock, Sum Sale, dll)
+      dataSubHeaderRow = weekHeaderRow + 1;
+      const wRow  = intakeRows[weekHeaderRow];
+      const sRow  = (dataSubHeaderRow < intakeRows.length) ? intakeRows[dataSubHeaderRow] : [];
+
+      // Temukan kolom SKU (kolom B = index 1)
+      let iSku = 1;
+      for (let c = 0; c < wRow.length; c++) {
+        if (/sku|product code/i.test((wRow[c]||'').trim())) { iSku = c; break; }
+      }
+
+      // Kumpulkan semua week-block: { weekNum, startCol }
+      // Setiap week-block dimulai dari kolom yang berisi angka isoweek
+      const weekBlocks = [];
+      for (let c = 0; c < wRow.length; c++) {
+        const val = (wRow[c] || '').trim();
+        if (/^\d{1,2}$/.test(val)) {
+          const wn = parseInt(val);
+          if (wn >= 1 && wn <= 53) weekBlocks.push({ weekNum: wn, startCol: c });
+        }
+      }
+
+      if (weekBlocks.length > 0) {
+        // Ambil week terbesar = data terkini
+        weekBlocks.sort((a, b) => b.weekNum - a.weekNum);
+        const latestBlock = weekBlocks[0];
+        const base = latestBlock.startCol;
+
+        // Dalam setiap block: base+0=Avail Stock, base+1=Sum Sale, base+2=Avg Sale 5Wk, base+3=Wks Cover, base+4=Restock Needed
+        // Konfirmasi dari sub-header jika ada
+        let oAvail=0, oSum=1, oAvg5w=2, oWc=3, oRestock=4;
+        if (sRow.length > base + 4) {
+          for (let d = 0; d <= 4; d++) {
+            const lbl = (sRow[base + d] || '').toLowerCase();
+            if (/avail|stock/i.test(lbl))           oAvail   = d;
+            else if (/sum.*sale|total.*sale/i.test(lbl)) oSum = d;
+            else if (/avg.*5|5.*wk/i.test(lbl))     oAvg5w   = d;
+            else if (/wk.*cover|wks.*cover/i.test(lbl)) oWc  = d;
+            else if (/restock|needed/i.test(lbl))   oRestock = d;
+          }
+        }
+
+        // Baca data per SKU mulai dari baris setelah sub-header
+        const dataStartRow = dataSubHeaderRow + 1;
+        for (let i = dataStartRow; i < intakeRows.length; i++) {
+          const r = intakeRows[i];
+          const skuRaw = (r[iSku] || '').trim();
+          if (!skuRaw || skuRaw === '#') continue;
+          intakeMap[skuRaw.toUpperCase()] = {
+            avail   : parseID(r[base + oAvail]),
+            avg5w   : parseID(r[base + oAvg5w]),
+            wc      : parseID(r[base + oWc]),
+            restock : parseID(r[base + oRestock]),
+            // avg_2026 tidak ada di intake_control — gunakan sum_sale dari week terbaru sebagai proxy
+            avg_2026: parseID(r[base + oSum]),
+          };
+        }
       }
     }
 
     // ── JOIN dashboard × intake_control by SKU ──
     const parsed = Object.values(dashMap)
-      .sort((a, b) => a.rank - b.rank) // urutan awal: rank 1→300
-      .filter(d => !EXCLUDED_SKU.has(d.sku.toUpperCase())) // exclude barang setengah jadi
+      .sort((a, b) => a.rank - b.rank)
+      .filter(d => !EXCLUDED_SKU.has(d.sku.toUpperCase()))
       .map(d => {
         const key    = d.sku.toUpperCase();
-        const intake = intakeMap[key] || { avail:0, avg_2026:0, avg5w:0, wc:0, restock:0 };
+        const intake = intakeMap[key] || { avail:0, avg5w:0, wc:0, restock:0, avg_2026:0 };
         const obj = {
-          rank      : d.rank,
-          sku       : d.sku,
-          qty       : d.qty,
+          rank       : d.rank,
+          sku        : d.sku,
+          qty        : d.qty,
           total_value: d.total_value,
-          avail     : intake.avail,
-          avg_2026  : intake.avg_2026,
-          avg5w     : intake.avg5w,
-          wc        : intake.wc,
-          restock   : intake.restock,
+          avail      : intake.avail,
+          avg_2026   : intake.avg_2026,  // sum sale week terbaru dari intake
+          avg5w      : intake.avg5w,
+          wc         : intake.wc,
+          restock    : intake.restock,
         };
-        obj.condition     = deriveCondition(obj);
-        obj.rec_sales     = recSales(obj.condition);
+        obj.condition      = deriveCondition(obj);
+        obj.rec_sales      = recSales(obj.condition);
         obj.rec_purchasing = recPurchasing(obj.condition);
         return obj;
       });
