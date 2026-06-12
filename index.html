@@ -234,8 +234,7 @@ td.nm{text-align:right;font-family:var(--fm);font-size:11px}
 // KONFIGURASI — sesuaikan jika diperlukan
 // ═══════════════════════════════════════════
 const SHEET_ID  = '1wqhs70hjgTE13_BXTPflPJGqZ6i7YIj1jQZ3vs-sgAU';
-const SHEET_GID_DASHBOARD = '1636358761'; // tab dashboard: rank, SKU, qty, revenue
-const SHEET_GID_INTAKE   = '1043734254'; // tab intake_control: avail stock, avg sale, WC, restock
+const SHEET_GID = '1636358761'; // gid tab "dashboard" — ganti jika berbeda
 
 // Threshold kondisi
 const WC_KRITIS  = 2;
@@ -321,145 +320,64 @@ function pID(v) {
 }
 
 // ═══════════════════════════════════════════
-// FETCH DATA — dua tab, fetch paralel, join by SKU
+// FETCH DATA
 // ═══════════════════════════════════════════
-async function fetchCSV(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+async function fetchData() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
   const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP ${r.status} saat fetch GID ${gid} — Pastikan sheet sudah diset publik`);
-  return parseCSV(await r.text());
-}
-
-// Cari index baris header di CSV rows
-function findHeader(rows, ...keywords) {
-  for (let i = 0; i < rows.length; i++) {
-    const joined = rows[i].join('|').toLowerCase();
-    if (keywords.every(kw => joined.includes(kw.toLowerCase()))) return i;
-  }
-  return -1;
+  if (!r.ok) throw new Error(`HTTP ${r.status} — Pastikan sheet sudah diset publik`);
+  return await r.text();
 }
 
 async function init() {
   setLoading(true);
   try {
-    // Fetch kedua tab secara paralel
-    const [dashRows, intakeRows] = await Promise.all([
-      fetchCSV(SHEET_GID_DASHBOARD),
-      fetchCSV(SHEET_GID_INTAKE)
-    ]);
+    const csv = await fetchData();
+    const rows = parseCSV(csv);
 
-    // ── PARSE TAB DASHBOARD (rank, SKU, qty, revenue) ──
-    // Header mengandung "rank" dan "sku"
-    const dhi = findHeader(dashRows, 'rank', 'sku');
-    if (dhi < 0) throw new Error('Header tidak ditemukan di tab dashboard. Cek struktur sheet.');
-
-    // Deteksi posisi kolom dari header row
-    const dhdr = dashRows[dhi].map(c => c.toLowerCase().trim());
-    const dCols = {
-      rank : dhdr.findIndex(c => /rank/.test(c)),
-      sku  : dhdr.findIndex(c => c === 'sku' || /\bsku\b/.test(c)),
-      qty  : dhdr.findIndex(c => /qty|quantity|total qty/i.test(c)),
-      rev  : dhdr.findIndex(c => /value|revenue|sales/i.test(c) && !/avg/i.test(c)),
-    };
-    // Fallback: gunakan posisi kolom dari data yang sudah diketahui
-    if (dCols.rank < 0) dCols.rank = 1;
-    if (dCols.sku  < 0) dCols.sku  = 2;
-    if (dCols.qty  < 0) dCols.qty  = 3;
-    if (dCols.rev  < 0) dCols.rev  = 4;
-
-    const dashMap = {}; // key: SKU uppercase
-    for (let i = dhi + 1; i < dashRows.length; i++) {
-      const r = dashRows[i];
-      const skuRaw = (r[dCols.sku] || '').trim();
-      if (!skuRaw) continue;
-      const rankVal = pID(r[dCols.rank]);
-      if (!rankVal) continue;
-      if (rankVal > 300) continue; // hanya ambil rank 1–300
-      dashMap[skuRaw.toUpperCase()] = {
-        rank: rankVal,
-        sku : skuRaw,
-        qty : pID(r[dCols.qty]),
-        rev : pID(r[dCols.rev]),
-      };
-    }
-
-    if (Object.keys(dashMap).length === 0)
-      throw new Error('Tidak ada data SKU di tab dashboard. Cek GID atau struktur kolom.');
-
-    // ── PARSE TAB INTAKE_CONTROL (avail, avg26, avg5w, wc, restock) ──
-    // Header mengandung "sku" dan "wk" atau "cover" atau "avg"
-    const ihi = findHeader(intakeRows, 'sku', 'avg');
-    const intakeMap = {}; // key: SKU uppercase
-
-    if (ihi >= 0) {
-      const ihdr = intakeRows[ihi].map(c => c.toLowerCase().trim());
-      // Deteksi kolom intake
-      const iCols = {
-        sku    : ihdr.findIndex(c => c === 'sku' || /\bsku\b/.test(c)),
-        avail  : ihdr.findIndex(c => /avail|stock/i.test(c)),
-        avg26  : ihdr.findIndex(c => /avg.*2026|2026.*avg/i.test(c)),
-        avg5w  : ihdr.findIndex(c => /avg.*5|5.*wk|5w/i.test(c)),
-        wc     : ihdr.findIndex(c => /wk.*cover|weeks.*cover|wc\b/i.test(c)),
-        restock: ihdr.findIndex(c => /restock|intake|needed/i.test(c)),
-      };
-      // Fallback posisi berdasarkan struktur intake_control yang diketahui
-      if (iCols.sku     < 0) iCols.sku     = 1;
-      if (iCols.avail   < 0) iCols.avail   = 2;
-      if (iCols.avg26   < 0) iCols.avg26   = 3;
-      if (iCols.avg5w   < 0) iCols.avg5w   = 4;
-      if (iCols.wc      < 0) iCols.wc      = 5;
-      if (iCols.restock < 0) iCols.restock = 6;
-
-      for (let i = ihi + 1; i < intakeRows.length; i++) {
-        const r = intakeRows[i];
-        const skuRaw = (r[iCols.sku] || '').trim();
-        if (!skuRaw) continue;
-        intakeMap[skuRaw.toUpperCase()] = {
-          avail  : pID(r[iCols.avail]),
-          avg26  : pID(r[iCols.avg26]),
-          avg5w  : pID(r[iCols.avg5w]),
-          wc     : pID(r[iCols.wc]),
-          restock: pID(r[iCols.restock]),
-        };
+    // Cari baris header (mengandung "Rank" dan "SKU")
+    let hi = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.some(c => /rank/i.test(c)) && r.some(c => /sku/i.test(c))) {
+        hi = i; break;
       }
     }
+    if (hi < 0) throw new Error('Header tabel tidak ditemukan. Cek struktur tab dashboard.');
 
-    // ── JOIN: dashboard × intake_control by SKU ──
     const parsed = [];
-    Object.values(dashMap)
-      .sort((a,b) => a.rank - b.rank) // pastikan urutan rank 1→300
-      .forEach(d => {
-        const key = d.sku.toUpperCase();
-        const intake = intakeMap[key] || { avail:0, avg26:0, avg5w:0, wc:0, restock:0 };
-        const obj = {
-          rank   : d.rank,
-          sku    : d.sku,
-          qty    : d.qty,
-          rev    : d.rev,
-          avail  : intake.avail,
-          avg26  : intake.avg26,
-          avg5w  : intake.avg5w,
-          wc     : intake.wc,
-          restock: intake.restock,
-        };
-        obj.condition = classify(obj);
-        obj.rec_sales = REC_S[obj.condition];
-        obj.rec_purch = REC_P[obj.condition];
-        obj.eskalasi  = ESK[obj.condition];
-        parsed.push(obj);
-      });
+    for (let i = hi + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const skuVal = (r[2] || '').trim();
+      if (!skuVal) continue;
+      const rankVal = pID(r[1]);
+      if (!rankVal && rankVal !== 0) continue;
+      const obj = {
+        rank   : rankVal,
+        sku    : skuVal,
+        qty    : pID(r[3]),
+        rev    : pID(r[4]),
+        avail  : pID(r[5]),
+        avg26  : pID(r[6]),
+        avg5w  : pID(r[7]),
+        wc     : pID(r[8]),
+        restock: pID(r[9])
+      };
+      obj.condition   = classify(obj);
+      obj.rec_sales   = REC_S[obj.condition];
+      obj.rec_purch   = REC_P[obj.condition];
+      obj.eskalasi    = ESK[obj.condition];
+      parsed.push(obj);
+    }
 
-    if (parsed.length === 0) throw new Error('Join data gagal — tidak ada SKU yang cocok.');
+    if (parsed.length === 0) throw new Error('Data SKU tidak ditemukan. Cek GID tab dashboard.');
 
     ALL = parsed;
-    const now = new Date().toLocaleString('id-ID', {
-      day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
-    });
+    const now = new Date().toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
     document.getElementById('upd-txt').childNodes[0].textContent = 'Diperbarui ';
     document.getElementById('upd-ts').textContent = now;
     document.getElementById('show-sid').textContent = SHEET_ID;
-    document.getElementById('show-gid').textContent =
-      `dashboard: ${SHEET_GID_DASHBOARD} | intake: ${SHEET_GID_INTAKE}`;
+    document.getElementById('show-gid').textContent = SHEET_GID;
 
     renderAll();
     setLoading(false);
