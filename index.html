@@ -247,11 +247,18 @@ function setMsg(msg, pct) {
 }
 
 function findHeader(rows, ...kws) {
-  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+  for (let i = 0; i < Math.min(rows.length, 30); i++) {
     const j = rows[i].join('|').toLowerCase();
     if (kws.every(k => j.includes(k.toLowerCase()))) return i;
   }
   return -1;
+}
+
+// Debug helper: tampilkan 3 baris pertama CSV untuk diagnosa
+function debugRows(rows, label) {
+  const preview = rows.slice(0, 3).map((r, i) => `Row ${i}: ${r.slice(0,6).join(' | ')}`).join('\n');
+  console.log(`[${label}] Preview:\n${preview}`);
+  return preview;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -429,32 +436,84 @@ async function loadData() {
     setMsg('Menghitung metrics...', 75);
 
     // ── Parse dashboard: ambil top 300 SKU by rank ──
-    const dhi = findHeader(dashRows, 'rank', 'sku');
-    if (dhi < 0) throw new Error('Header tidak ditemukan di tab dashboard. Cek struktur sheet.');
+    // Strategi: cari baris header yang mengandung kata "rank" ATAU "sku"
+    // Jika tidak ketemu, coba deteksi otomatis dari baris yang berisi angka di kolom rank
+    let dhi = -1;
+    // Coba cari header dengan berbagai kombinasi keyword
+    const dashHeaderCandidates = [
+      ['rank','sku'],           // exact match
+      ['rank','total'],         // "Rank | Total City Sales"
+      ['rank','value'],         // "Rank | Total Value Sales"
+      ['rank','avg'],           // "Rank | Avg Sale"
+      ['rank','avail'],         // "Rank | Avail Stock"
+      ['rank','wks'],           // "Rank | Wks Cover"
+      ['rank','restock'],       // "Rank | Restock"
+      ['rank'], ['sku'],        // single keyword fallback
+    ];
+    for (const kws of dashHeaderCandidates) {
+      dhi = findHeader(dashRows, ...kws);
+      if (dhi >= 0) break;
+    }
 
-    // Deteksi kolom dari header
+    // Fallback: jika tidak ada header sama sekali, asumsikan baris 0 adalah header
+    // atau baris pertama yang kolom pertamanya bukan angka
+    if (dhi < 0) {
+      for (let i = 0; i < Math.min(dashRows.length, 5); i++) {
+        const firstCol = (dashRows[i][0] || '').trim();
+        if (isNaN(pNum(firstCol)) || firstCol === '') { dhi = i; break; }
+      }
+    }
+    if (dhi < 0) dhi = 0; // last resort
+
+    // Deteksi kolom dari header row
     const dhdr = dashRows[dhi].map(c => c.toLowerCase().trim());
-    const dSku  = dhdr.findIndex(c => c === 'sku' || /\bsku\b/.test(c));
-    const dRank = dhdr.findIndex(c => /rank/.test(c));
-    const iSku  = dSku  >= 0 ? dSku  : 2;
-    const iRank = dRank >= 0 ? dRank : 1;
+    // Nama kolom aktual di tab dashboard (baris 11):
+    // Rank | SKU | Total City Sales | Total Value Sales | Avail Stock | Avg Sale 2026 | Avg Sale 5W | Wks Cover | Restock Needed
+    let iRank = dhdr.findIndex(c => /rank/.test(c));
+    let iSku  = dhdr.findIndex(c => /sku/.test(c));
+    let iQty  = dhdr.findIndex(c => /city.?sales|qty|quantity|total.?qty/.test(c));
+    let iRev  = dhdr.findIndex(c => /value.?sales|revenue|total.?value/.test(c));
 
-    const rankMap = {}; // SKU → rank
+    // Fallback ke posisi kolom berdasarkan struktur yang diketahui
+    if (iRank < 0) iRank = 0;  // kolom A
+    if (iSku  < 0) iSku  = 1;  // kolom B
+    if (iQty  < 0) iQty  = 2;  // kolom C = Total City Sales
+    if (iRev  < 0) iRev  = 3;  // kolom D = Total Value Sales
+
+    const rankMap = {}; // SKU → { rank, qty, rev }
     for (let i = dhi + 1; i < dashRows.length; i++) {
       const r = dashRows[i];
-      const sku = (r[iSku] || '').trim();
+      const sku  = (r[iSku] || '').trim();
       const rank = pNum(r[iRank]);
       if (!sku || !rank || rank > TOP_N) continue;
       if (EXCLUDED.has(sku.toUpperCase())) continue;
+      if (sku.toUpperCase().startsWith('ACC-')) continue;
       rankMap[sku] = rank;
     }
 
+    // Jika masih kosong, coba tanpa filter rank (mungkin rank > TOP_N)
+    if (Object.keys(rankMap).length === 0) {
+      for (let i = dhi + 1; i < dashRows.length; i++) {
+        const r = dashRows[i];
+        const sku  = (r[iSku] || '').trim();
+        const rank = pNum(r[iRank]);
+        if (!sku || !rank) continue;
+        if (EXCLUDED.has(sku.toUpperCase())) continue;
+        if (sku.toUpperCase().startsWith('ACC-')) continue;
+        rankMap[sku] = rank;
+        if (Object.keys(rankMap).length >= TOP_N) break;
+      }
+    }
+
     if (Object.keys(rankMap).length === 0)
-      throw new Error('Tidak ada SKU di tab dashboard. Pastikan tab dashboard berisi kolom Rank dan SKU.');
+      throw new Error('Tidak ada SKU ditemukan di tab dashboard. Cek: (1) sheet sudah publik, (2) GID benar: ' + GID_DASH);
 
     // ── Parse daily_sale ──
     const shi = findHeader(saleRows, 'date', 'sku');
-    if (shi < 0) throw new Error('Header tidak ditemukan di tab daily_sale.');
+    if (shi < 0) {
+      const dbg = debugRows(saleRows, 'daily_sale');
+      throw new Error('Header tidak ditemukan di tab daily_sale. Baris pertama: ' + (saleRows[0]||[]).slice(0,5).join(' | '));
+    }
     const shdr = saleRows[shi].map(c => c.toLowerCase().trim());
     const sDate = shdr.findIndex(c => c === 'date');
     const sSku  = shdr.findIndex(c => c === 'sku');
@@ -477,7 +536,10 @@ async function loadData() {
 
     // ── Parse daily_stock ──
     const sthi = findHeader(stockRows, 'date', 'sku');
-    if (sthi < 0) throw new Error('Header tidak ditemukan di tab daily_stock.');
+    if (sthi < 0) {
+      const dbg = debugRows(stockRows, 'daily_stock');
+      throw new Error('Header tidak ditemukan di tab daily_stock. Baris pertama: ' + (stockRows[0]||[]).slice(0,5).join(' | '));
+    }
     const sthdr = stockRows[sthi].map(c => c.toLowerCase().trim());
     const stDate  = sthdr.findIndex(c => c === 'date');
     const stSku   = sthdr.findIndex(c => c === 'sku');
