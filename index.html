@@ -3,194 +3,214 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Merchandising Intelligence Dashboard</title>
+<title>Merchandising Intelligence — WSSI Dashboard</title>
 <style>
-  :root {
-    --green-bold: #264C47;
-    --cream-bold: #BA9F87;
-    --blue-bold: #466689;
-    --cream-soft: #EEDDCA;
-    --green-soft: #86AFAA;
-    --white: #FFFFFF;
-    --gray-100: #F7F5F2;
-    --gray-200: #EDE9E3;
-    --gray-400: #B8B0A6;
-    --gray-600: #7A7068;
-    --gray-800: #3D3830;
-    --text-main: #1E2E2B;
-    --text-muted: #6B7A78;
-    --cond-a: #264C47;   --cond-a-bg: #E0EDEB;
-    --cond-b: #BA7517;   --cond-b-bg: #FFF0D6;
-    --cond-c: #C0392B;   --cond-c-bg: #FDECEA;
-    --cond-d: #5F5E5A;   --cond-d-bg: #EEEDE9;
-    --font-display: 'Georgia','Times New Roman',serif;
-    --font-body: -apple-system,'Segoe UI',sans-serif;
-    --font-mono: 'SF Mono','Fira Code',monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--gray-100);font-family:var(--font-body);color:var(--text-main);min-height:100vh}
+:root {
+  --gd:#264C47;--cb:#BA9F87;--bb:#466689;
+  --cs:#EEDDCA;--gs:#86AFAA;
+  --bg:#F5F3EF;--white:#fff;
+  --g1:#F0EDE8;--g2:#E2DDD6;--g4:#B0A899;--g6:#7A7268;--g8:#3A3530;
+  --tx:#1E2B28;--mt:#6B7870;
+  --ca:#264C47;--ca-bg:#DFF0EC;
+  --cb2:#8B5E0A;--cb-bg:#FEF3DC;
+  --cc:#B83030;--cc-bg:#FDECEA;
+  --cd:#5F5955;--cd-bg:#EEEBE6;
+  --fd:'Georgia','Times New Roman',serif;
+  --fb:-apple-system,'Segoe UI',sans-serif;
+  --fm:'SF Mono','Fira Code','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:var(--fb);color:var(--tx);min-height:100vh}
 
-  .header{background:var(--green-bold);padding:20px 32px 16px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
-  .header-left h1{font-family:var(--font-display);font-size:22px;font-weight:normal;color:var(--cream-soft);letter-spacing:.02em}
-  .header-left .subtitle{font-size:11px;color:var(--green-soft);margin-top:3px;letter-spacing:.06em;text-transform:uppercase}
-  .header-right{display:flex;align-items:center;gap:12px}
-  .last-update{font-size:11px;color:var(--green-soft);text-align:right}
-  .last-update span{display:block;color:var(--cream-soft);font-size:13px;font-family:var(--font-mono)}
-  .refresh-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--cream-soft);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;transition:background .2s;letter-spacing:.03em}
-  .refresh-btn:hover{background:rgba(255,255,255,.18)}
+.hdr{background:var(--gd);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.hdr h1{font-family:var(--fd);font-size:19px;font-weight:normal;color:var(--cs);letter-spacing:.02em}
+.hdr .sub{font-size:9px;color:var(--gs);margin-top:2px;letter-spacing:.08em;text-transform:uppercase}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.live{display:flex;align-items:center;gap:5px;background:rgba(134,175,170,.15);border:1px solid rgba(134,175,170,.3);color:var(--gs);padding:4px 10px;border-radius:12px;font-size:10px}
+.dot{width:6px;height:6px;background:#4CAF7D;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.upd{font-size:10px;color:var(--gs)}
+.upd span{display:block;color:var(--cs);font-family:var(--fm);font-size:11px}
+.rfbtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--cs);padding:6px 13px;border-radius:6px;font-size:11px;cursor:pointer;transition:background .2s}
+.rfbtn:hover{background:rgba(255,255,255,.16)}
 
-  .state-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:16px;color:var(--text-muted)}
-  .spinner{width:36px;height:36px;border:3px solid var(--gray-200);border-top-color:var(--green-bold);border-radius:50%;animation:spin .8s linear infinite}
-  .progress-wrap{width:280px;background:var(--gray-200);border-radius:4px;height:6px;overflow:hidden;margin-top:4px}
-  .progress-bar{height:100%;background:var(--green-bold);border-radius:4px;transition:width .3s ease}
-  @keyframes spin{to{transform:rotate(360deg)}}
+.nav{background:var(--gd);border-top:1px solid rgba(255,255,255,.08);padding:0 28px;display:flex;gap:2px}
+.nb{padding:9px 16px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:none;color:rgba(238,221,202,.55);border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.03em}
+.nb:hover{color:var(--cs)}
+.nb.act{color:var(--cs);border-bottom-color:var(--cb)}
 
-  .main{padding:24px 32px;max-width:1440px;margin:0 auto}
+.main{padding:20px 28px;max-width:1440px;margin:0 auto}
+.page{display:none}.page.act{display:block}
 
-  .kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
-  .kpi-card{background:var(--white);border-radius:10px;padding:16px;border-top:3px solid transparent}
-  .kpi-card.total{border-top-color:var(--blue-bold)}
-  .kpi-card.cond-a{border-top-color:var(--cond-a)}
-  .kpi-card.cond-b{border-top-color:var(--cond-b)}
-  .kpi-card.cond-c{border-top-color:var(--cond-c)}
-  .kpi-card.cond-d{border-top-color:var(--cond-d)}
-  .kpi-card.restock{border-top-color:var(--cream-bold)}
-  .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:6px}
-  .kpi-value{font-size:26px;font-weight:700;color:var(--text-main);line-height:1}
-  .kpi-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.st{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;gap:12px;color:var(--mt)}
+.spin{width:32px;height:32px;border:3px solid var(--g2);border-top-color:var(--gd);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pw{width:280px;background:var(--g2);border-radius:4px;height:5px;overflow:hidden;margin-top:4px}
+.pb{height:100%;background:var(--gd);border-radius:4px;transition:width .3s}
 
-  .controls-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
-  .search-wrap{position:relative;flex:1;min-width:200px;max-width:320px}
-  .search-wrap input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;background:var(--white);color:var(--text-main);outline:none;transition:border-color .15s}
-  .search-wrap input:focus{border-color:var(--green-soft)}
-  .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:14px;pointer-events:none}
-  .filter-group{display:flex;gap:6px;flex-wrap:wrap}
-  .filter-btn{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--gray-200);transition:all .15s;background:var(--white);color:var(--text-muted)}
-  .filter-btn:hover{border-color:var(--gray-400)}
-  .filter-btn.active-all{background:var(--green-bold);color:var(--white);border-color:var(--green-bold)}
-  .filter-btn.active-a{background:var(--cond-a-bg);color:var(--cond-a);border-color:var(--cond-a)}
-  .filter-btn.active-b{background:var(--cond-b-bg);color:var(--cond-b);border-color:var(--cond-b)}
-  .filter-btn.active-c{background:var(--cond-c-bg);color:var(--cond-c);border-color:var(--cond-c)}
-  .filter-btn.active-d{background:var(--cond-d-bg);color:var(--cond-d);border-color:var(--cond-d)}
-  .sort-select{padding:8px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:12px;background:var(--white);color:var(--text-main);cursor:pointer;outline:none}
+.krow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:16px}
+.kc{background:var(--white);border-radius:9px;padding:12px 14px;border-top:3px solid var(--g2)}
+.kc.kt{border-top-color:var(--bb)}.kc.ka{border-top-color:var(--ca)}
+.kc.kb{border-top-color:var(--cb2)}.kc.kc2{border-top-color:var(--cc)}
+.kc.kd{border-top-color:var(--cd)}.kc.kr{border-top-color:var(--cb)}
+.kc.kf{border-top-color:var(--gs)}
+.kl{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--mt);margin-bottom:4px}
+.kv{font-size:21px;font-weight:700;line-height:1}
+.ks{font-size:10px;color:var(--mt);margin-top:2px}
 
-  .table-wrap{background:var(--white);border-radius:12px;overflow:hidden;border:1px solid var(--gray-200)}
-  .table-header-bar{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-200)}
-  .table-title{font-size:13px;font-weight:600;color:var(--text-main)}
-  .table-count{font-size:12px;color:var(--text-muted)}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{padding:10px 16px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);background:var(--gray-100);border-bottom:1px solid var(--gray-200);cursor:pointer;user-select:none;white-space:nowrap}
-  thead th:hover{color:var(--text-main)}
-  thead th.sort-asc::after{content:" ↑"}
-  thead th.sort-desc::after{content:" ↓"}
-  tbody tr{border-bottom:1px solid var(--gray-200);transition:background .1s}
-  tbody tr:last-child{border-bottom:none}
-  tbody tr:hover{background:var(--gray-100)}
-  td{padding:11px 16px;vertical-align:middle}
-  td.rank{color:var(--text-muted);font-size:12px;width:36px;font-family:var(--font-mono)}
-  td.sku-cell{font-weight:600;color:var(--green-bold);font-size:13px}
-  td.num{text-align:right;font-family:var(--font-mono);font-size:12px}
+.ctrl{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.sw{position:relative;flex:1;min-width:160px;max-width:280px}
+.sw input{width:100%;padding:7px 10px 7px 28px;border:1px solid var(--g2);border-radius:7px;font-size:12px;background:var(--white);color:var(--tx);outline:none}
+.sw input:focus{border-color:var(--gs)}
+.si{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--g4);font-size:13px;pointer-events:none}
+.fg{display:flex;gap:5px;flex-wrap:wrap}
+.fb2{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid var(--g2);background:var(--white);color:var(--mt);transition:all .15s}
+.fb2:hover{border-color:var(--g4)}
+.fb2.fa{background:var(--gd);color:var(--white);border-color:var(--gd)}
+.fb2.fA{background:var(--ca-bg);color:var(--ca);border-color:var(--ca)}
+.fb2.fB{background:var(--cb-bg);color:var(--cb2);border-color:var(--cb2)}
+.fb2.fC{background:var(--cc-bg);color:var(--cc);border-color:var(--cc)}
+.fb2.fD{background:var(--cd-bg);color:var(--cd);border-color:var(--cd)}
+.ss{padding:6px 10px;border:1px solid var(--g2);border-radius:7px;font-size:11px;background:var(--white);color:var(--tx);cursor:pointer;outline:none}
 
-  .wc-cell{min-width:130px}
-  .wc-wrap{display:flex;align-items:center;gap:8px}
-  .wc-num{font-family:var(--font-mono);font-size:12px;min-width:42px;text-align:right}
-  .wc-bar-bg{flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden}
-  .wc-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.tw{background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--g2)}
+.tb2{padding:11px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--g2)}
+.tt{font-size:12px;font-weight:600}
+.tc{font-size:11px;color:var(--mt)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:8px 12px;text-align:left;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mt);background:var(--g1);border-bottom:1px solid var(--g2);cursor:pointer;user-select:none;white-space:nowrap}
+thead th:hover{color:var(--tx)}
+th.sa::after{content:" ↑"}th.sd::after{content:" ↓"}
+tbody tr{border-bottom:1px solid var(--g2);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--g1)}
+td{padding:9px 12px;vertical-align:middle}
+td.rk{color:var(--g4);font-size:11px;width:28px;font-family:var(--fm)}
+td.sk{font-weight:600;color:var(--gd);font-size:12px}
+td.nm{text-align:right;font-family:var(--fm);font-size:11px}
+td.nm.hi{color:var(--cc);font-weight:600}
+td.nm.ok{color:var(--ca)}
 
-  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
-  .badge-dot{width:6px;height:6px;border-radius:50%}
-  .badge-A{background:var(--cond-a-bg);color:var(--cond-a)}.badge-A .badge-dot{background:var(--cond-a)}
-  .badge-B{background:var(--cond-b-bg);color:var(--cond-b)}.badge-B .badge-dot{background:var(--cond-b)}
-  .badge-C{background:var(--cond-c-bg);color:var(--cond-c)}.badge-C .badge-dot{background:var(--cond-c)}
-  .badge-D{background:var(--cond-d-bg);color:var(--cond-d)}.badge-D .badge-dot{background:var(--cond-d)}
+.ww{display:flex;align-items:center;gap:6px;min-width:100px}
+.wn{font-family:var(--fm);font-size:11px;min-width:32px;text-align:right}
+.wbg{flex:1;height:5px;background:var(--g2);border-radius:3px;overflow:hidden}
+.wf{height:100%;border-radius:3px;transition:width .4s}
 
-  .restock-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-family:var(--font-mono)}
-  .restock-pill.needed{background:var(--cond-c-bg);color:var(--cond-c);font-weight:700}
-  .restock-pill.zero{color:var(--gray-400)}
+.bdg{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.bdd{width:5px;height:5px;border-radius:50%}
+.bA{background:var(--ca-bg);color:var(--ca)}.bA .bdd{background:var(--ca)}
+.bB{background:var(--cb-bg);color:var(--cb2)}.bB .bdd{background:var(--cb2)}
+.bC{background:var(--cc-bg);color:var(--cc)}.bC .bdd{background:var(--cc)}
+.bD{background:var(--cd-bg);color:var(--cd)}.bD .bdd{background:var(--cd)}
 
-  .rec-cell{max-width:240px}
-  .rec-sales{font-size:11px;color:var(--green-bold);margin-bottom:2px}
-  .rec-purchasing{font-size:11px;color:var(--blue-bold)}
-  .rec-label{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400)}
+.pill{display:inline-block;padding:2px 7px;border-radius:9px;font-size:10px;font-family:var(--fm)}
+.pneed{background:var(--cc-bg);color:var(--cc);font-weight:700}
+.pzero{color:var(--g4)}
+.pintake{background:var(--ca-bg);color:var(--ca);font-weight:700}
+.pfc{background:#EEF3FF;color:#466689;font-weight:600}
+.pup{background:#FFF8E8;color:#8B5E0A;font-weight:600;font-size:9px;margin-left:2px}
 
-  .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
-  .chart-card{background:var(--white);border-radius:12px;padding:20px;border:1px solid var(--gray-200)}
-  .chart-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:16px}
-  .donut-wrap{display:flex;align-items:center;gap:24px}
-  .donut-svg{flex-shrink:0}
-  .donut-legend{flex:1}
-  .donut-item{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-  .donut-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-  .donut-label{font-size:12px;color:var(--text-main);flex:1}
-  .donut-pct{font-size:13px;font-weight:700;font-family:var(--font-mono)}
-  .donut-count{font-size:11px;color:var(--text-muted);margin-left:4px}
-  .bar-item{margin-bottom:12px}
-  .bar-header{display:flex;justify-content:space-between;margin-bottom:4px}
-  .bar-sku{font-size:11px;font-weight:600;color:var(--text-main)}
-  .bar-val{font-size:11px;font-family:var(--font-mono);color:var(--text-muted)}
-  .bar-track{height:8px;background:var(--gray-200);border-radius:4px;overflow:hidden}
-  .bar-fill{height:100%;border-radius:4px;background:var(--green-bold);transition:width .5s}
-  .bar-fill.warning{background:var(--cond-c)}
+.rc{max-width:200px}
+.rs{font-size:10px;color:var(--ca);margin-bottom:1px}
+.rp{font-size:10px;color:var(--bb)}
+.rl{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--g4)}
 
-  .footer{text-align:center;padding:20px;font-size:11px;color:var(--gray-400);margin-top:8px}
+.chrow{display:grid;grid-template-columns:240px 1fr 1fr;gap:12px;margin-top:14px}
+.ch{background:var(--white);border-radius:10px;padding:16px;border:1px solid var(--g2)}
+.cht{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--mt);margin-bottom:12px}
+.dw{display:flex;align-items:center;gap:14px}
+.dl{flex:1}
+.di{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.dd{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.dl2{font-size:11px;flex:1}
+.dp{font-size:12px;font-weight:700;font-family:var(--fm)}
+.dc{font-size:10px;color:var(--mt);margin-left:2px}
+.bi{margin-bottom:9px}
+.bh{display:flex;justify-content:space-between;margin-bottom:3px}
+.bs{font-size:10px;font-weight:600}
+.bv{font-size:10px;font-family:var(--fm);color:var(--mt)}
+.btr{height:6px;background:var(--g2);border-radius:4px;overflow:hidden}
+.bf{height:100%;border-radius:4px;transition:width .5s}
 
-  .pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-top:1px solid var(--gray-200)}
-  .page-btn{padding:5px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer;background:var(--white);color:var(--text-main);transition:all .15s}
-  .page-btn:hover:not(:disabled){border-color:var(--green-bold);color:var(--green-bold)}
-  .page-btn:disabled{opacity:.4;cursor:default}
-  .page-btn.active{background:var(--green-bold);color:var(--white);border-color:var(--green-bold)}
-  .page-info{font-size:12px;color:var(--text-muted)}
+/* WSSI TABLE */
+.wssi-wrap{background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--g2);margin-bottom:14px}
+.wssi-title{padding:12px 16px;font-size:12px;font-weight:600;border-bottom:1px solid var(--g2);display:flex;justify-content:space-between;align-items:center}
+.wssi-note{font-size:10px;color:var(--mt);font-weight:normal}
+.wssi-tbl table{font-size:11px}
+.wssi-tbl thead th{font-size:9px;padding:7px 12px}
+.wssi-tbl td{padding:8px 12px}
+.wssi-tbl td.wk-col{font-weight:600;color:var(--gd);font-family:var(--fm);font-size:10px}
+.wssi-tbl td.cur-wk{background:#F0F7F5}
+.wssi-pos{color:var(--ca);font-weight:600}
+.wssi-neg{color:var(--cc);font-weight:600}
 
-  @media(max-width:900px){
-    .kpi-strip{grid-template-columns:repeat(3,1fr)}
-    .charts-row{grid-template-columns:1fr}
-    .main{padding:16px}
-    .header{padding:16px}
-  }
+/* ALERT PAGE */
+.al-card{background:var(--white);border-radius:10px;padding:16px;border:1px solid var(--g2);margin-bottom:12px}
+.al-ttl{font-size:11px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.al-chip{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.al-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px}
+.al-item{padding:8px 10px;border-radius:7px;font-size:11px;font-weight:600;border:1px solid transparent}
+.al-rev{font-size:10px;font-weight:normal;color:var(--g6);margin-top:1px;font-family:var(--fm)}
+.al-wc{font-size:10px;font-family:var(--fm);margin-top:1px}
+.al-fc{font-size:10px;color:var(--bb);margin-top:1px}
+
+.pag{display:flex;align-items:center;justify-content:center;gap:5px;padding:11px;border-top:1px solid var(--g2)}
+.pgb{padding:4px 9px;border:1px solid var(--g2);border-radius:5px;font-size:11px;cursor:pointer;background:var(--white);color:var(--tx);transition:all .15s}
+.pgb:hover:not(:disabled){border-color:var(--gd);color:var(--gd)}
+.pgb:disabled{opacity:.35;cursor:default}
+.pgb.act{background:var(--gd);color:var(--white);border-color:var(--gd)}
+.pgi{font-size:11px;color:var(--mt);margin:0 4px}
+
+.footer{text-align:center;padding:14px;font-size:10px;color:var(--g4)}
+@media(max-width:1024px){.krow{grid-template-columns:repeat(4,1fr)}.chrow{grid-template-columns:1fr}}
+@media(max-width:700px){.krow{grid-template-columns:repeat(2,1fr)}.main{padding:12px 14px}}
 </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="header-left">
-    <h1>Merchandising Intelligence</h1>
-    <div class="subtitle">Real-time · Sumber: daily_sale &amp; daily_stock</div>
+<header class="hdr">
+  <div>
+    <h1>Merchandising Intelligence — WSSI</h1>
+    <div class="sub">Weekly Sales &amp; Stock Intelligence · daily_sale · daily_stock · intake_plan</div>
   </div>
-  <div class="header-right">
-    <div class="last-update">Data diperbarui<span id="update-time">—</span></div>
-    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  <div class="hdr-r">
+    <div class="live"><span class="dot"></span>Live</div>
+    <div class="upd">Diperbarui<span id="ts">—</span></div>
+    <button class="rfbtn" onclick="init()">↻ Refresh</button>
   </div>
 </header>
 
+<nav class="nav">
+  <button class="nb act" onclick="showPage('overview',this)">Overview</button>
+  <button class="nb" onclick="showPage('sku',this)">Detail SKU</button>
+  <button class="nb" onclick="showPage('wssi',this)">WSSI Forward</button>
+  <button class="nb" onclick="showPage('alert',this)">🔴 Alert &amp; Aksi</button>
+</nav>
+
 <div class="main">
-  <div id="app-content">
-    <div class="state-overlay">
-      <div class="spinner"></div>
-      <div id="loading-msg">Menginisialisasi...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="prog" style="width:0%"></div></div>
-    </div>
-  </div>
+  <div class="page act" id="page-overview"><div class="st"><div class="spin"></div><div id="lmsg">Memuat data...</div><div class="pw"><div class="pb" id="prog" style="width:5%"></div></div></div></div>
+  <div class="page" id="page-sku"><div class="st"><div class="spin"></div></div></div>
+  <div class="page" id="page-wssi"><div class="st"><div class="spin"></div></div></div>
+  <div class="page" id="page-alert"><div class="st"><div class="spin"></div></div></div>
 </div>
 
-<div class="footer">
-  Merchandising Intelligence Dashboard &nbsp;·&nbsp; Kalkulasi: avg_sale_5wk = total qty 5 minggu terakhir ÷ 5 &nbsp;·&nbsp; WC = avail_stock ÷ avg_sale_5wk
-</div>
+<div class="footer">WSSI Merchandising Dashboard · Sumber: daily_sale · daily_stock · intake_plan · Kalkulasi real-time di browser</div>
 
 <script>
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // KONFIGURASI
-// ═══════════════════════════════════════════════════════
-const SHEET_ID    = '1wqhs70hjgTE13_BXTPflPJGqZ6i7YIj1jQZ3vs-sgAU';
-const GID_SALE    = '988962963';    // tab daily_sale  : date|month|week|SKU|qty_sold|revenue
-const GID_STOCK   = '1075155569';    // tab daily_stock : date|month|week|SKU|available_stock
-const GID_DASH    = '1636358761';   // tab dashboard   : rank, SKU, qty_ytd, revenue_ytd
+// ═══════════════════════════════════════════════
+const SHEET_ID   = '1wqhs70hjgTE13_BXTPflPJGqZ6i7YIj1jQZ3vs-sgAU';
+const GID_SALE   = '988962963';   // daily_sale:  date|month|week|SKU|qty_sold|revenue
+const GID_STOCK  = '1075155569';  // daily_stock: date|month|week|SKU|available_stock
+const GID_INTAKE = '674420835';   // intake_plan: week|SKU|qty_intake
 
-// Thresholds (sesuai intake_control_system)
-const WC_KRITIS   = 2;    // WC < 2  → Replenish
-const WC_AMAN     = 12;   // WC > 12 → Push
-const TOP_N       = 300;  // hanya analisa 300 SKU teratas by revenue
+const WC_KRITIS  = 2;
+const WC_AMAN    = 12;
+const TOP_N      = 300;
+const UPLIFT_TWIN_DEFAULT  = 2.0;
+const UPLIFT_PAYDAY_DEFAULT= 1.3;
 
-// SKU barang setengah jadi — dikecualikan dari analisa
 const EXCLUDED = new Set([
   'HQJ-NON-ASB','INNER-A4-ALHIFZ-JAKET','INNER-A5-ALHIFZ-HVSWARNA-JAKET',
   'INNER-A5-BUKHARA-KERUT','INR-0001','INR-0002','INR-0006','INR-0007',
@@ -200,31 +220,31 @@ const EXCLUDED = new Set([
   'SISIPAN-D6','SISIPAN-D7','SISIPAN-D8','SISIPAN-D9'
 ]);
 
-// ── STATE ──
-let allData = [], filtered = [];
-let currentFilter = 'ALL', searchTerm = '';
-let sortCol = 'rank', sortDir = 'asc';
-let currentPage = 1;
-const PAGE_SIZE = 25;
+function isExcluded(sku) {
+  const u = sku.toUpperCase();
+  return EXCLUDED.has(u) || u.startsWith('ACC-');
+}
 
-// ═══════════════════════════════════════════════════════
+// ── STATE ──
+let ALL=[], filtered=[];
+let filt='ALL', srch='', sCol='rank', sDir='asc', pg=1;
+const PG=25;
+
+// ═══════════════════════════════════════════════
 // UTILITIES
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 function pNum(v) {
-  if (v === null || v === undefined || v === '') return 0;
-  // Handle Indonesian format: 1.234,56 or plain 1234 or 1234.5
-  const s = String(v).trim().replace(/\./g, '').replace(',', '.');
-  return parseFloat(s) || 0;
+  if (!v && v !== 0) return 0;
+  return parseFloat(String(v).trim().replace(/\./g,'').replace(',','.')) || 0;
 }
 
 function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  return lines.map(line => {
-    const cols = []; let cur = '', inQ = false;
+  return text.trim().split('\n').map(line => {
+    const cols=[]; let cur='', inQ=false;
     for (const ch of line) {
-      if (ch === '"') { inQ = !inQ; }
-      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-      else cur += ch;
+      if (ch==='"'){inQ=!inQ}
+      else if (ch===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=ch;
     }
     cols.push(cur.trim());
     return cols;
@@ -233,597 +253,744 @@ function parseCSV(text) {
 
 async function fetchCSV(gid, label) {
   setMsg(`Memuat ${label}...`);
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Gagal fetch ${label} (HTTP ${r.status}). Pastikan sheet diset publik.`);
+  const r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`);
+  if (!r.ok) throw new Error(`Gagal fetch ${label} (HTTP ${r.status})`);
   return parseCSV(await r.text());
 }
 
-function setMsg(msg, pct) {
-  const el = document.getElementById('loading-msg');
-  const pb = document.getElementById('prog');
-  if (el) el.textContent = msg;
-  if (pb && pct !== undefined) pb.style.width = pct + '%';
+function setMsg(m, p) {
+  const e=document.getElementById('lmsg'), b=document.getElementById('prog');
+  if(e) e.textContent=m;
+  if(b&&p!==undefined) b.style.width=p+'%';
 }
 
-function findHeader(rows, ...kws) {
-  for (let i = 0; i < Math.min(rows.length, 30); i++) {
-    const j = rows[i].join('|').toLowerCase();
-    if (kws.every(k => j.includes(k.toLowerCase()))) return i;
+function isoWeek(dt) {
+  const d=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));
+  d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));
+  return Math.ceil((((d-new Date(Date.UTC(d.getUTCFullYear(),0,1)))/86400000)+1)/7);
+}
+
+function getMondayOfWeek(weekNum, year=2026) {
+  const jan4 = new Date(year, 0, 4);
+  const startMonday = new Date(jan4);
+  startMonday.setDate(jan4.getDate() - ((jan4.getDay()+6)%7));
+  const d = new Date(startMonday);
+  d.setDate(startMonday.getDate() + (weekNum-1)*7);
+  return d;
+}
+
+function get5WkWindow() {
+  const today=new Date();
+  const dow=today.getDay();
+  const thisMonday=new Date(today);
+  thisMonday.setDate(today.getDate()-((dow+6)%7));
+  thisMonday.setHours(0,0,0,0);
+  const endSun=new Date(thisMonday);
+  endSun.setDate(thisMonday.getDate()-1);
+  endSun.setHours(23,59,59,999);
+  const startMon=new Date(endSun);
+  startMon.setDate(endSun.getDate()-34);
+  startMon.setHours(0,0,0,0);
+  return {start:startMon, end:endSun, thisMonday};
+}
+
+function getCurrentWeekRange() {
+  const {thisMonday}=get5WkWindow();
+  const sun=new Date(thisMonday);
+  sun.setDate(thisMonday.getDate()+6);
+  sun.setHours(23,59,59,999);
+  return {start:thisMonday, end:sun, weekNum:isoWeek(thisMonday)};
+}
+
+// Twin dates di 2026: 1/1, 2/2, 3/3, ..., 12/12
+function isTwinDate(dt) {
+  return (dt.getMonth()+1) === dt.getDate();
+}
+
+// Payday = tanggal 25
+function isPayday(dt) {
+  return dt.getDate() === 25;
+}
+
+// ═══════════════════════════════════════════════
+// LOGIKA KONDISI
+// ═══════════════════════════════════════════════
+function isExcludedFromIdle(sku) {
+  return isExcluded(sku);
+}
+
+function deriveCondition(m, sku) {
+  const {avg5w, avg2026, avail, wc, qtyYtd, idleWeeks, stockout5w} = m;
+  const pernah = qtyYtd >= 10;
+
+  if (pernah) {
+    if (avail === 0) return 'C';
+    if (idleWeeks >= 5 && stockout5w) return 'C';
+    if (wc > 0 && wc < WC_KRITIS) return 'C';
+    if (avg5w > 0 && avg2026 > 0 && (avg5w/avg2026) < 0.3 && wc <= WC_KRITIS) return 'C';
   }
-  return -1;
+  if (avail > 0 && idleWeeks >= 5 && !stockout5w && !isExcludedFromIdle(sku)) return 'D';
+  if (avail > 0 && !pernah && !isExcludedFromIdle(sku)) return 'D';
+  if (avg5w > 0 && wc > WC_AMAN) return 'B';
+  return 'A';
 }
 
-// Debug helper: tampilkan 3 baris pertama CSV untuk diagnosa
-function debugRows(rows, label) {
-  const preview = rows.slice(0, 3).map((r, i) => `Row ${i}: ${r.slice(0,6).join(' | ')}`).join('\n');
-  console.log(`[${label}] Preview:\n${preview}`);
-  return preview;
-}
+const CLABEL={A:'Maintain',B:'Push',C:'Replenish',D:'Idle'};
+const RS={
+  A:'Pertahankan momentum, jaga promo rutin',
+  B:'Boost iklan, flash sale, atau bundling',
+  C:'Jaga demand; stok kosong — demand tetap ada',
+  D:'Investigasi root cause, pertimbangkan clearance'
+};
+const RP={
+  A:'Reorder sesuai jadwal, safety stock normal',
+  B:'Tahan PO baru, pantau sell-through dulu',
+  C:'Emergency reorder segera, eskalasi ke manager',
+  D:'Stop semua PO, hitung potensi write-off/retur'
+};
 
-// ═══════════════════════════════════════════════════════
-// KALKULASI — dihitung dari raw daily_sale & daily_stock
-//
-// Avg Sale 5Wk = total qty terjual dalam 5 minggu penuh
-//               terakhir (Mon–Sun) ÷ 5
-//               → konsisten dengan intake_control_system
-//
-// WC           = avail_stock_terbaru ÷ avg_sale_5wk
-//
-// Restock      = MAX(0, target_stock - avail_stock)
-//               target_stock = avg_sale_5wk × WC_AMAN
-// ═══════════════════════════════════════════════════════
-function getLastNCompleteWeeks(n) {
-  // Cari Senin awal dari N minggu penuh ke belakang dari hari ini
-  const today = new Date();
-  const dow = today.getDay(); // 0=Sun,1=Mon,...
-  // Senin minggu ini
-  const thisMonday = new Date(today);
-  thisMonday.setDate(today.getDate() - ((dow + 6) % 7));
-  thisMonday.setHours(0, 0, 0, 0);
-  // Senin N minggu lalu
-  const startMonday = new Date(thisMonday);
-  startMonday.setDate(thisMonday.getDate() - (n * 7));
-  // Minggu terakhir (hari sebelum Senin minggu ini)
-  const endSunday = new Date(thisMonday);
-  endSunday.setDate(thisMonday.getDate() - 1);
-  endSunday.setHours(23, 59, 59, 999);
-  return { start: startMonday, end: endSunday };
-}
+// ═══════════════════════════════════════════════
+// KALKULASI METRICS
+// ═══════════════════════════════════════════════
+function calcMetrics(saleBySku, stockBySku, skuList, intakeBySkuWk) {
+  const {start:w5Start, end:w5End} = get5WkWindow();
+  const {start:cwStart, end:cwEnd, weekNum:curWk} = getCurrentWeekRange();
+  const MS_WK = 7*24*3600*1000;
+  const jan1  = new Date('2026-01-05');
+  const weeksElapsed = Math.max(1, Math.floor((w5End - jan1) / MS_WK));
 
-function calcMetrics(saleBySku, stockBySku, skuList) {
-  const { start: w5Start, end: w5End } = getLastNCompleteWeeks(5);
+  // ── Hitung uplift twin date & payday dari historis ──
+  // Kumpulkan semua penjualan per SKU per tanggal
+  const globalTwinQty=[], globalNormQty=[], globalPayQty=[];
+  for (const rows of Object.values(saleBySku)) {
+    for (const r of rows) {
+      if (isTwinDate(r.date)) globalTwinQty.push(r.qty);
+      else if (isPayday(r.date)) globalPayQty.push(r.qty);
+      else globalNormQty.push(r.qty);
+    }
+  }
+  const avgGlobalNorm = globalNormQty.length ? globalNormQty.reduce((a,b)=>a+b,0)/globalNormQty.length : 1;
+  const avgGlobalTwin = globalTwinQty.length ? globalTwinQty.reduce((a,b)=>a+b,0)/globalTwinQty.length : avgGlobalNorm*UPLIFT_TWIN_DEFAULT;
+  const avgGlobalPay  = globalPayQty.length  ? globalPayQty.reduce((a,b)=>a+b,0)/globalPayQty.length   : avgGlobalNorm*UPLIFT_PAYDAY_DEFAULT;
+  const globalTwinFactor = avgGlobalNorm > 0 ? avgGlobalTwin/avgGlobalNorm : UPLIFT_TWIN_DEFAULT;
+  const globalPayFactor  = avgGlobalNorm > 0 ? avgGlobalPay/avgGlobalNorm  : UPLIFT_PAYDAY_DEFAULT;
 
   const result = {};
   for (const sku of skuList) {
-    // ── Total qty YTD (seluruh 2026) ──
     const salesAll = saleBySku[sku] || [];
-    const qtyYtd = salesAll.reduce((s, r) => s + r.qty, 0);
-    const revYtd = salesAll.reduce((s, r) => s + r.rev, 0);
+    const qtyYtd = salesAll.reduce((s,r)=>s+r.qty,0);
+    const revYtd = salesAll.reduce((s,r)=>s+r.rev,0);
 
-    // ── Avg Sale 5Wk (5 minggu penuh terakhir) ──
-    const sales5w = salesAll.filter(r => r.date >= w5Start && r.date <= w5End);
-    const qty5w   = sales5w.reduce((s, r) => s + r.qty, 0);
-    const avg5w   = qty5w / 5;
+    // Avg 5Wk
+    const qty5w = salesAll.filter(r=>r.date>=w5Start&&r.date<=w5End).reduce((s,r)=>s+r.qty,0);
+    const avg5w = qty5w / 5;
 
-    // ── Avg Sale 2026 (rata-rata per minggu seluruh tahun) ──
-    const jan1 = new Date('2026-01-05');
-    const weeksElapsed = Math.max(1, Math.floor((w5End - jan1) / (7 * 24 * 3600 * 1000)));
+    // Avg 2026 per minggu
     const avg2026 = qtyYtd / weeksElapsed;
 
-    // ── Idle weeks: berapa minggu penuh berturut-turut tanpa penjualan ──
-    // Dihitung mundur dari minggu terbaru. Berhenti saat pertama ada penjualan.
-    let idleWeeks = 0;
-    const MS_WEEK = 7 * 24 * 3600 * 1000;
-    for (let w = 0; w < 26; w++) {
-      const wkEnd   = new Date(w5End.getTime() - w * MS_WEEK);
-      const wkStart = new Date(wkEnd.getTime() - MS_WEEK + 1);
-      const hasQty  = salesAll.some(r => r.date >= wkStart && r.date <= wkEnd && r.qty > 0);
-      if (!hasQty) idleWeeks++;
-      else break;
+    // Idle weeks
+    let idleWeeks=0;
+    for (let w=0; w<26; w++) {
+      const we=new Date(w5End.getTime()-w*MS_WK);
+      const ws=new Date(we.getTime()-MS_WK+1);
+      const hasQ=salesAll.some(r=>r.date>=ws&&r.date<=we&&r.qty>0);
+      if (!hasQ) idleWeeks++; else break;
     }
 
-    // ── Stok kosong selama 5 pekan terakhir (stockout-driven idle) ──
-    const stkAll   = stockBySku[sku] || [];
-    const stkIn5w  = stkAll.filter(r => r.date >= w5Start && r.date <= w5End);
-    const stockout5w = stkIn5w.length > 0 && stkIn5w.every(r => r.stock === 0);
-
-    // ── Avail Stock (snapshot terbaru) ──
-    let avail = 0;
-    if (stkAll.length > 0) {
-      stkAll.sort((a, b) => b.date - a.date);
+    // Stok
+    const stkAll = stockBySku[sku] || [];
+    const stkIn5w = stkAll.filter(r=>r.date>=w5Start&&r.date<=w5End);
+    const stockout5w = stkIn5w.length>0 && stkIn5w.every(r=>r.stock===0);
+    let avail=0;
+    if (stkAll.length>0) {
+      stkAll.sort((a,b)=>b.date-a.date);
       avail = stkAll[0].stock;
     }
 
-    // ── Weeks Cover ──
-    const wc = avg5w > 0 ? avail / avg5w : (avail > 0 ? 9999 : 0);
+    // WC & Restock
+    const wc = avg5w>0 ? avail/avg5w : (avail>0?9999:0);
+    const restock = avg5w>0 ? Math.max(0,Math.ceil(avg5w*WC_AMAN - avail)) : 0;
 
-    // ── Restock Needed ──
-    const targetStock = avg5w * WC_AMAN;
-    const restock = avg5w > 0 ? Math.max(0, Math.ceil(targetStock - avail)) : 0;
+    // ── Uplift per SKU dari historis ──
+    const skuSales = salesAll;
+    const skuNorm=[], skuTwin=[], skuPay=[];
+    for (const r of skuSales) {
+      if (isTwinDate(r.date)) skuTwin.push(r.qty);
+      else if (isPayday(r.date)) skuPay.push(r.qty);
+      else skuNorm.push(r.qty);
+    }
+    const skuNormAvg = skuNorm.length ? skuNorm.reduce((a,b)=>a+b,0)/skuNorm.length : 0;
+    const skuTwinAvg = skuTwin.length ? skuTwin.reduce((a,b)=>a+b,0)/skuTwin.length : 0;
+    const skuPayAvg  = skuPay.length  ? skuPay.reduce((a,b)=>a+b,0)/skuPay.length   : 0;
 
-    result[sku] = { qtyYtd, revYtd, avg5w, avg2026, avail, wc, restock, idleWeeks, stockout5w };
+    // Uplift SKU (gunakan global sebagai fallback jika data tidak cukup)
+    const twinFactor = (skuTwin.length>=2 && skuNormAvg>0)
+      ? Math.max(1, skuTwinAvg/skuNormAvg)
+      : globalTwinFactor;
+    const payFactor = (skuPay.length>=2 && skuNormAvg>0)
+      ? Math.max(1, skuPayAvg/skuNormAvg)
+      : globalPayFactor;
+
+    // ── Forecast minggu berjalan (hari per hari) ──
+    // Baseline harian = avg5w / 7
+    const baselineDaily = avg5w / 7;
+    let forecastWk = 0;
+    let hasTwinThisWk = false, hasPaydayThisWk = false;
+    for (let d=0; d<7; d++) {
+      const dt = new Date(cwStart);
+      dt.setDate(cwStart.getDate()+d);
+      if (dt > cwEnd) break;
+      if (isTwinDate(dt)) {
+        forecastWk += baselineDaily * twinFactor;
+        hasTwinThisWk = true;
+      } else if (isPayday(dt)) {
+        forecastWk += baselineDaily * payFactor;
+        hasPaydayThisWk = true;
+      } else {
+        forecastWk += baselineDaily;
+      }
+    }
+    forecastWk = Math.round(forecastWk);
+
+    // Intake plan minggu berjalan
+    const intakeKey = `${curWk}_${sku.toUpperCase()}`;
+    const intakeWk = intakeBySkuWk[intakeKey] || 0;
+
+    // WSSI closing stock
+    const closingStock = Math.max(0, avail + intakeWk - forecastWk);
+    const wcForward = avg5w>0 ? closingStock/avg5w : (closingStock>0?9999:0);
+
+    // Uplift label untuk display
+    const upliftLabel = hasTwinThisWk ? `Twin×${twinFactor.toFixed(1)}`
+      : hasPaydayThisWk ? `Payday×${payFactor.toFixed(1)}` : '';
+
+    result[sku] = {
+      qtyYtd, revYtd, avg5w, avg2026, avail, wc, restock,
+      idleWeeks, stockout5w,
+      forecastWk, intakeWk, closingStock, wcForward,
+      twinFactor, payFactor, upliftLabel, curWk
+    };
   }
   return result;
 }
 
-// ═══════════════════════════════════════════════════════
-// LOGIKA KONDISI (final)
-//
-// D (Idle)      : stok ADA + tidak ada penjualan ≥5 pekan berturut-turut
-//                 + bukan karena stockout (demand benar-benar tidak ada)
-//                 + SKU bukan prefix acc- atau daftar exclude lainnya
-//
-// C (Replenish) : pernah ada penjualan tahun ini TAPI:
-//                 - stok kosong sekarang, ATAU
-//                 - idle 5w tapi disebabkan stockout (stok kosong di 5w tsb), ATAU
-//                 - WC kritis (< 2), ATAU
-//                 - avg5w drop tajam vs avg2026 + WC kritis
-//
-// B (Push)      : WC > 12 → stok berlebih vs kecepatan jual
-// A (Maintain)  : kondisi sehat
-// ═══════════════════════════════════════════════════════
-function isExcludedFromIdle(sku) {
-  const u = sku.toUpperCase();
-  // Prefix acc- = barang setengah jadi aksesoris
-  if (u.startsWith('ACC-')) return true;
-  // Daftar exclude spesifik
-  return EXCLUDED.has(u);
-}
-
-function deriveCondition(m, sku) {
-  const { avg5w, avg2026, avail, wc, qtyYtd, idleWeeks, stockout5w } = m;
-  const pernahTerjual = qtyYtd >= 10; // ada riwayat penjualan di 2026
-
-  // ── C: demand ada tapi stok tidak cukup ──
-  if (pernahTerjual) {
-    // Stok kosong sekarang
-    if (avail === 0) return 'C';
-    // Idle 5 pekan tapi karena stockout → demand masih ada, bukan idle
-    if (idleWeeks >= 5 && stockout5w) return 'C';
-    // WC sangat kritis
-    if (wc > 0 && wc < WC_KRITIS) return 'C';
-    // Drop tajam avg5w vs avg2026 + WC kritis → stockout-driven
-    if (avg5w > 0 && avg2026 > 0 && (avg5w / avg2026) < 0.3 && wc <= WC_KRITIS) return 'C';
-  }
-
-  // ── D: stok ada, idle ≥5 pekan, demand tidak ada ──
-  // Bukan karena stockout, bukan SKU exclude
-  if (avail > 0 && idleWeeks >= 5 && !stockout5w && !isExcludedFromIdle(sku)) return 'D';
-  // Tidak pernah terjual sama sekali sepanjang 2026 + stok ada
-  if (avail > 0 && !pernahTerjual && !isExcludedFromIdle(sku)) return 'D';
-
-  // ── B: stok berlebih ──
-  if (avg5w > 0 && wc > WC_AMAN) return 'B';
-
-  // ── A: sehat ──
-  return 'A';
-}
-
-const COND_LABEL = { A:'Maintain', B:'Push', C:'Replenish', D:'Idle' };
-const REC_SALES = {
-  A: 'Pertahankan momentum, jaga promo rutin',
-  B: 'Boost iklan, flash sale, atau bundling',
-  C: 'Jaga demand; stok kosong — demand tetap ada',
-  D: 'Investigasi root cause, pertimbangkan clearance'
-};
-const REC_PURCH = {
-  A: 'Reorder sesuai jadwal, safety stock normal',
-  B: 'Tahan PO baru, pantau sell-through dulu',
-  C: 'Emergency reorder segera, eskalasi ke manager',
-  D: 'Stop semua PO, hitung potensi write-off/retur'
-};
-
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // LOAD DATA
-// ═══════════════════════════════════════════════════════
-async function loadData() {
-  document.getElementById('app-content').innerHTML = `
-    <div class="state-overlay">
-      <div class="spinner"></div>
-      <div id="loading-msg">Memuat data...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="prog" style="width:5%"></div></div>
-    </div>`;
+// ═══════════════════════════════════════════════
+async function init() {
+  ['page-overview','page-sku','page-wssi','page-alert'].forEach(id => {
+    document.getElementById(id).innerHTML =
+      '<div class="st"><div class="spin"></div><div id="lmsg">Memuat data...</div><div class="pw"><div class="pb" id="prog" style="width:5%"></div></div></div>';
+  });
 
   try {
-    // Hitung rank langsung dari daily_sale — tidak perlu tab dashboard
-    setMsg('Memuat data penjualan harian...', 20);
-    const saleRows = await fetchCSV(GID_SALE, 'daily_sale');
-    setMsg('Memuat data stok harian...', 70);
-    const stockRows = await fetchCSV(GID_STOCK, 'daily_stock');
+    setMsg('Memuat data penjualan harian...', 15);
+    const saleRows  = await fetchCSV(GID_SALE,   'daily_sale');
+    setMsg('Memuat data stok harian...', 38);
+    const stockRows = await fetchCSV(GID_STOCK,  'daily_stock');
+    setMsg('Memuat rencana intake...', 58);
+    const intakeRows= await fetchCSV(GID_INTAKE, 'intake_plan');
+    setMsg('Menghitung metrics & forecast...', 72);
 
-    // ── Rank dihitung dari revenue YTD daily_sale (lihat blok di bawah) ──
+    // ── Parse daily_sale: date|month|week|SKU|qty_sold|revenue ──
+    const shi = findHdr(saleRows, 'date','sku');
+    if (shi<0) throw new Error('Header tidak ditemukan di tab daily_sale. Baris pertama: '+(saleRows[0]||[]).join(' | '));
+    const shdr = saleRows[shi].map(c=>c.toLowerCase().trim());
+    const sD=col(shdr,['date'],0), sSku=col(shdr,['sku'],3),
+          sQ=col(shdr,['qty'],4), sR=col(shdr,['revenue','rev'],5);
 
-    // ── Parse daily_sale ──
-    const shi = findHeader(saleRows, 'date', 'sku');
-    if (shi < 0) {
-      const dbg = debugRows(saleRows, 'daily_sale');
-      throw new Error('Header tidak ditemukan di tab daily_sale. Baris pertama: ' + (saleRows[0]||[]).slice(0,5).join(' | '));
-    }
-    const shdr = saleRows[shi].map(c => c.toLowerCase().trim());
-    const sDate = shdr.findIndex(c => c === 'date');
-    const sSku  = shdr.findIndex(c => c === 'sku');
-    const sQty  = shdr.findIndex(c => /qty/.test(c));
-    const sRev  = shdr.findIndex(c => /revenue|rev/.test(c));
-
-    const saleBySku = {};
-    for (let i = shi + 1; i < saleRows.length; i++) {
-      const r = saleRows[i];
-      const sku = (r[sSku >= 0 ? sSku : 3] || '').trim();
-      if (!sku) continue;
-      const dateStr = r[sDate >= 0 ? sDate : 0] || '';
-      const qty = pNum(r[sQty >= 0 ? sQty : 4]);
-      const rev = pNum(r[sRev >= 0 ? sRev : 5]);
-      const dt  = new Date(dateStr);
-      if (isNaN(dt.getTime())) continue;
-      if (!saleBySku[sku]) saleBySku[sku] = [];
-      saleBySku[sku].push({ date: dt, qty, rev });
+    const saleBySku={};
+    for (let i=shi+1; i<saleRows.length; i++) {
+      const r=saleRows[i];
+      const sku=(r[sSku]||'').trim(); if(!sku) continue;
+      const dt=new Date(r[sD]||''); if(isNaN(dt.getTime())) continue;
+      const qty=pNum(r[sQ]), rev=pNum(r[sR]);
+      if (!saleBySku[sku]) saleBySku[sku]=[];
+      saleBySku[sku].push({date:dt, qty, rev});
     }
 
-    // ── Hitung rank per SKU berdasarkan total revenue YTD ──
-    // Exclude SKU barang setengah jadi
-    const revBySku = {};
-    for (const [sku, rows] of Object.entries(saleBySku)) {
-      const skuU = sku.toUpperCase();
-      if (EXCLUDED.has(skuU)) continue;
-      if (skuU.startsWith('ACC-')) continue;
-      revBySku[sku] = rows.reduce((s, r) => s + r.rev, 0);
-    }
-    // Urutkan by revenue descending → beri rank
-    const rankMap = {};
-    Object.entries(revBySku)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, TOP_N)
-      .forEach(([sku, rev], idx) => {
-        rankMap[sku] = idx + 1; // rank mulai dari 1
-      });
+    // ── Parse daily_stock: date|month|week|SKU|available_stock ──
+    const sthi = findHdr(stockRows,'date','sku');
+    if (sthi<0) throw new Error('Header tidak ditemukan di tab daily_stock. Baris pertama: '+(stockRows[0]||[]).join(' | '));
+    const sthdr=stockRows[sthi].map(c=>c.toLowerCase().trim());
+    const stD=col(sthdr,['date'],0), stSku=col(sthdr,['sku'],3),
+          stStk=col(sthdr,['available','avail','stock'],4);
 
-    if (Object.keys(rankMap).length === 0)
-      throw new Error('Tidak ada data penjualan di tab daily_sale. Pastikan sheet sudah publik dan ada data 2026.');
-
-    setMsg('Memuat data stok harian...', 65);
-
-    // ── Parse daily_stock ──
-    const sthi = findHeader(stockRows, 'date', 'sku');
-    if (sthi < 0) {
-      const dbg = debugRows(stockRows, 'daily_stock');
-      throw new Error('Header tidak ditemukan di tab daily_stock. Baris pertama: ' + (stockRows[0]||[]).slice(0,5).join(' | '));
-    }
-    const sthdr = stockRows[sthi].map(c => c.toLowerCase().trim());
-    const stDate  = sthdr.findIndex(c => c === 'date');
-    const stSku   = sthdr.findIndex(c => c === 'sku');
-    const stStock = sthdr.findIndex(c => /avail|stock/.test(c));
-
-    const stockBySku = {};
-    for (let i = sthi + 1; i < stockRows.length; i++) {
-      const r = stockRows[i];
-      const sku = (r[stSku >= 0 ? stSku : 3] || '').trim();
-      if (!sku) continue;
-      const dateStr = r[stDate >= 0 ? stDate : 0] || '';
-      const stock = pNum(r[stStock >= 0 ? stStock : 4]);
-      const dt = new Date(dateStr);
-      if (isNaN(dt.getTime())) continue;
-      if (!stockBySku[sku]) stockBySku[sku] = [];
-      stockBySku[sku].push({ date: dt, stock });
+    const stockBySku={};
+    for (let i=sthi+1; i<stockRows.length; i++) {
+      const r=stockRows[i];
+      const sku=(r[stSku]||'').trim(); if(!sku) continue;
+      const dt=new Date(r[stD]||''); if(isNaN(dt.getTime())) continue;
+      const stk=pNum(r[stStk]);
+      if (!stockBySku[sku]) stockBySku[sku]=[];
+      stockBySku[sku].push({date:dt, stock:stk});
     }
 
-    // ── Hitung metrics per SKU ──
-    setMsg('Menghitung WC, avg5w, restock...', 88);
-    const skuList = Object.keys(rankMap);
-    const metrics = calcMetrics(saleBySku, stockBySku, skuList);
+    // ── Parse intake_plan: week|SKU|qty_intake ──
+    const ihi = findHdr(intakeRows,'week','sku');
+    const intakeBySkuWk={};
+    if (ihi>=0) {
+      const ihdr=intakeRows[ihi].map(c=>c.toLowerCase().trim());
+      const iW=col(ihdr,['week'],0), iSku=col(ihdr,['sku'],1),
+            iQ=col(ihdr,['qty','intake','plan'],2);
+      for (let i=ihi+1; i<intakeRows.length; i++) {
+        const r=intakeRows[i];
+        const wk=pNum(r[iW]), sku=(r[iSku]||'').trim().toUpperCase();
+        const qty=pNum(r[iQ]);
+        if (!wk||!sku||!qty) continue;
+        intakeBySkuWk[`${wk}_${sku}`]=qty;
+      }
+    }
 
-    // ── Gabungkan semua ──
-    const parsed = skuList
-      .sort((a, b) => rankMap[a] - rankMap[b])
-      .map(sku => {
-        const m = metrics[sku];
-        const cond = deriveCondition(m, sku);
-        return {
-          rank       : rankMap[sku],
-          sku        : sku,
-          qty        : m.qtyYtd,
-          total_value: m.revYtd,
-          avail      : m.avail,
-          avg_2026   : m.avg2026,
-          avg5w      : m.avg5w,
-          wc         : m.wc,
-          restock    : m.restock,
-          condition  : cond,
-          rec_sales  : REC_SALES[cond],
-          rec_purchasing: REC_PURCH[cond],
-        };
-      });
+    // ── Rank dari revenue YTD ──
+    const revBySku={};
+    for (const [sku,rows] of Object.entries(saleBySku)) {
+      if (isExcluded(sku)) continue;
+      revBySku[sku]=rows.reduce((s,r)=>s+r.rev,0);
+    }
+    const rankMap={};
+    Object.entries(revBySku).sort((a,b)=>b[1]-a[1]).slice(0,TOP_N)
+      .forEach(([sku],i)=>{ rankMap[sku]=i+1; });
 
-    setMsg('Merender dashboard...', 97);
-    allData = parsed;
-    document.getElementById('update-time').textContent =
-      new Date().toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-    applyFilters();
+    if (!Object.keys(rankMap).length)
+      throw new Error('Tidak ada data penjualan. Pastikan tab daily_sale sudah publik.');
+
+    // ── Hitung metrics ──
+    setMsg('Menghitung WC, forecast, WSSI...', 88);
+    const skuList=Object.keys(rankMap).sort((a,b)=>rankMap[a]-rankMap[b]);
+    const metrics=calcMetrics(saleBySku, stockBySku, skuList, intakeBySkuWk);
+
+    ALL = skuList.map(sku => {
+      const m=metrics[sku];
+      const cond=deriveCondition(m, sku);
+      return {
+        rank:rankMap[sku], sku,
+        qty:m.qtyYtd, total_value:m.revYtd,
+        avail:m.avail, avg5w:m.avg5w, avg2026:m.avg2026,
+        wc:m.wc, restock:m.restock,
+        forecastWk:m.forecastWk, intakeWk:m.intakeWk,
+        closingStock:m.closingStock, wcForward:m.wcForward,
+        upliftLabel:m.upliftLabel, curWk:m.curWk,
+        condition:cond, rec_s:RS[cond], rec_p:RP[cond]
+      };
+    });
+
+    document.getElementById('ts').textContent =
+      new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+    applyFilt();
     renderAll();
 
   } catch(e) {
-    document.getElementById('app-content').innerHTML = `
-      <div class="state-overlay">
-        <div style="color:#C0392B;font-size:32px">⚠</div>
-        <div style="font-weight:600;color:#3D3830">Gagal memuat data</div>
-        <div style="font-size:12px;color:#7A7068;max-width:440px;text-align:center">
-          ${e.message}<br><br>
-          Pastikan Google Sheets diset ke <strong>"Anyone with the link can view"</strong>
-          dan ketiga tab (dashboard, daily_sale, daily_stock) bisa diakses.
-        </div>
-        <button class="refresh-btn" style="background:var(--green-bold);margin-top:8px" onclick="loadData()">↻ Coba Lagi</button>
-      </div>`;
+    const html=`<div class="st">
+      <div style="color:#B83030;font-size:28px">⚠</div>
+      <div style="font-weight:600">${e.message}</div>
+      <div style="font-size:11px;color:var(--mt);max-width:440px;text-align:center">
+        Pastikan Google Sheets diset <strong>"Anyone with the link can view"</strong>
+        dan ketiga tab (daily_sale, daily_stock, intake_plan) bisa diakses.
+      </div>
+      <button class="rfbtn" style="background:var(--gd);margin-top:10px" onclick="init()">↻ Coba Lagi</button>
+    </div>`;
+    ['page-overview','page-sku','page-wssi','page-alert'].forEach(id=>{
+      document.getElementById(id).innerHTML=html;
+    });
   }
 }
 
-// ═══════════════════════════════════════════════════════
+function findHdr(rows, ...kws) {
+  for (let i=0; i<Math.min(rows.length,30); i++) {
+    const j=rows[i].join('|').toLowerCase();
+    if (kws.every(k=>j.includes(k))) return i;
+  }
+  return -1;
+}
+function col(hdr, keys, fallback) {
+  const i=hdr.findIndex(c=>keys.some(k=>c.includes(k)));
+  return i>=0 ? i : fallback;
+}
+
+// ═══════════════════════════════════════════════
 // FILTER & SORT
-// ═══════════════════════════════════════════════════════
-function applyFilters() {
-  filtered = allData.filter(d => {
-    const mF = currentFilter === 'ALL' || d.condition === currentFilter;
-    const mS = !searchTerm || d.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    return mF && mS;
+// ═══════════════════════════════════════════════
+function applyFilt() {
+  filtered=ALL.filter(d=>{
+    const mF=filt==='ALL'||d.condition===filt;
+    const mS=!srch||d.sku.toLowerCase().includes(srch.toLowerCase());
+    return mF&&mS;
   });
-  filtered.sort((a, b) => {
-    const av = a[sortCol], bv = b[sortCol];
-    if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-    return sortDir === 'asc' ? av - bv : bv - av;
+  filtered.sort((a,b)=>{
+    const av=a[sCol],bv=b[sCol];
+    if (typeof av==='string') return sDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return sDir==='asc'?av-bv:bv-av;
   });
-  currentPage = 1;
+  pg=1;
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // FORMAT
-// ═══════════════════════════════════════════════════════
-function fmt(n) {
-  if (n === undefined || n === null) return '—';
-  return Math.round(n).toLocaleString('id-ID');
+// ═══════════════════════════════════════════════
+function fN(n){return n?Math.round(n).toLocaleString('id-ID'):'—'}
+function fRp(n){
+  if(!n) return '—';
+  if(n>=1e9) return 'Rp'+(n/1e9).toFixed(2)+' M';
+  if(n>=1e6) return 'Rp'+(n/1e6).toFixed(1)+' jt';
+  return 'Rp'+Math.round(n).toLocaleString('id-ID');
 }
-function fmtRp(n) {
-  if (!n) return '—';
-  if (n >= 1e9) return 'Rp' + (n/1e9).toFixed(2) + ' M';
-  if (n >= 1e6) return 'Rp' + (n/1e6).toFixed(1) + ' jt';
-  return 'Rp' + Math.round(n).toLocaleString('id-ID');
-}
-function wcColor(cond) {
-  return { A:'#264C47', B:'#E67E22', C:'#C0392B', D:'#B8B0A6' }[cond] || '#888';
-}
-function wcBarWidth(wc) {
-  if (!wc || wc >= 9999) return wc >= 9999 ? 100 : 0;
-  return Math.min(100, (wc / 30) * 100);
-}
+function wcCol(c){return{A:'#264C47',B:'#E67E22',C:'#B83030',D:'#B0A899'}[c]||'#888'}
+function wcW(wc){return wc>=9999?100:Math.min(100,(wc/30)*100)}
+function thc(c){return sCol===c?(sDir==='asc'?'sa':'sd'):''}
 
-// ═══════════════════════════════════════════════════════
-// RENDER
-// ═══════════════════════════════════════════════════════
-function renderAll() {
-  const counts = { A:0, B:0, C:0, D:0 };
-  let totalRestock = 0;
-  allData.forEach(d => { counts[d.condition]++; totalRestock += d.restock || 0; });
-  const total = allData.length;
-
-  const donutData = [
-    { label:'A — Maintain',  count:counts.A, color:'#264C47', pct: total ? Math.round(counts.A/total*100) : 0 },
-    { label:'B — Push',      count:counts.B, color:'#BA7517', pct: total ? Math.round(counts.B/total*100) : 0 },
-    { label:'C — Replenish', count:counts.C, color:'#C0392B', pct: total ? Math.round(counts.C/total*100) : 0 },
-    { label:'D — Idle',      count:counts.D, color:'#B8B0A6', pct: total ? Math.round(counts.D/total*100) : 0 },
-  ];
-
-  const topSku = [...allData].sort((a,b) => b.total_value - a.total_value).slice(0,10);
-  const maxVal = topSku[0]?.total_value || 1;
-
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageData = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-
-  const thClass = c => c === sortCol ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
-
-  const tableRows = pageData.map(d => {
-    const wcVal = d.wc >= 9999 ? '∞' : d.wc === 0 ? '0.0' : d.wc.toFixed(1);
-    const wcW   = wcBarWidth(d.wc);
-    const wcCol = wcColor(d.condition);
-    return `<tr>
-      <td class="rank">${d.rank}</td>
-      <td class="sku-cell">${d.sku}</td>
-      <td class="num">${fmt(d.qty)}</td>
-      <td class="num">${fmtRp(d.total_value)}</td>
-      <td class="num">${fmt(d.avail)}</td>
-      <td class="num">${d.avg_2026.toFixed(1)}</td>
-      <td class="num">${d.avg5w.toFixed(1)}</td>
-      <td class="wc-cell">
-        <div class="wc-wrap">
-          <div class="wc-num" style="color:${wcCol}">${wcVal}x</div>
-          <div class="wc-bar-bg"><div class="wc-bar-fill" style="width:${wcW}%;background:${wcCol}"></div></div>
-        </div>
-      </td>
-      <td><span class="badge badge-${d.condition}"><span class="badge-dot"></span>${d.condition} ${COND_LABEL[d.condition]}</span></td>
-      <td><span class="restock-pill ${d.restock > 0 ? 'needed' : 'zero'}">${d.restock > 0 ? '+'+fmt(d.restock) : '—'}</span></td>
-      <td class="rec-cell">
-        <div class="rec-label">Sales</div><div class="rec-sales">${d.rec_sales}</div>
-        <div class="rec-label" style="margin-top:4px">Purchasing</div><div class="rec-purchasing">${d.rec_purchasing}</div>
-      </td>
-    </tr>`;
-  }).join('');
-
-  // Pagination
-  let pagBtns = '', pages = [];
-  if (totalPages <= 7) { for (let i=1;i<=totalPages;i++) pages.push(i); }
-  else {
-    pages = [1];
-    if (currentPage > 3) pages.push('...');
-    for (let i=Math.max(2,currentPage-1);i<=Math.min(totalPages-1,currentPage+1);i++) pages.push(i);
-    if (currentPage < totalPages-2) pages.push('...');
-    pages.push(totalPages);
-  }
-  pagBtns = pages.map(p => p === '...'
-    ? `<span style="color:var(--text-muted);padding:0 4px">…</span>`
-    : `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`
-  ).join('');
-
-  // Donut SVG
-  const cx=70, cy=70, r=50, gap=3;
-  let donutPaths = '', cumAngle = -Math.PI/2;
-  const totalCount = donutData.reduce((s,d)=>s+d.count,0) || 1;
-  donutData.forEach(seg => {
-    const angle = (seg.count / totalCount) * 2 * Math.PI;
-    const endAngle = cumAngle + angle - (gap/r);
-    const x1=cx+r*Math.cos(cumAngle), y1=cy+r*Math.sin(cumAngle);
-    const x2=cx+r*Math.cos(endAngle), y2=cy+r*Math.sin(endAngle);
-    donutPaths += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${angle>Math.PI?1:0} 1 ${x2} ${y2} Z" fill="${seg.color}" opacity="0.85"/>`;
-    cumAngle += angle;
+// ═══════════════════════════════════════════════
+// DONUT SVG
+// ═══════════════════════════════════════════════
+function donut(segs) {
+  const cx=60,cy=60,r=44,gap=2.5;
+  let paths='',cum=-Math.PI/2;
+  const tot=segs.reduce((s,d)=>s+d.n,0)||1;
+  segs.forEach(s=>{
+    const angle=(s.n/tot)*Math.PI*2;
+    const end=cum+angle-(gap/r);
+    const x1=cx+r*Math.cos(cum),y1=cy+r*Math.sin(cum);
+    const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
+    paths+=`<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${angle>Math.PI?1:0} 1 ${x2} ${y2}Z" fill="${s.color}" opacity=".88"/>`;
+    cum+=angle;
   });
+  return `<svg width="120" height="120" viewBox="0 0 120 120">
+    <circle cx="60" cy="60" r="44" fill="#F0EDE8"/>
+    ${paths}
+    <circle cx="60" cy="60" r="24" fill="white"/>
+    <text x="60" y="57" text-anchor="middle" font-size="16" font-weight="700" fill="#264C47" font-family="Georgia,serif">${tot}</text>
+    <text x="60" y="70" text-anchor="middle" font-size="8" fill="#6B7870" font-family="sans-serif">SKU</text>
+  </svg>`;
+}
 
-  document.getElementById('app-content').innerHTML = `
-  <div class="kpi-strip">
-    <div class="kpi-card total">
-      <div class="kpi-label">Total SKU Aktif</div>
-      <div class="kpi-value">${total}</div>
-      <div class="kpi-sub">Top ${TOP_N} by revenue</div>
-    </div>
-    <div class="kpi-card cond-a">
-      <div class="kpi-label">A — Maintain</div>
-      <div class="kpi-value" style="color:var(--cond-a)">${counts.A}</div>
-      <div class="kpi-sub">${total?Math.round(counts.A/total*100):0}% portofolio</div>
-    </div>
-    <div class="kpi-card cond-b">
-      <div class="kpi-label">B — Push</div>
-      <div class="kpi-value" style="color:var(--cond-b)">${counts.B}</div>
-      <div class="kpi-sub">Stok tinggi, sales lambat</div>
-    </div>
-    <div class="kpi-card cond-c">
-      <div class="kpi-label">C — Replenish</div>
-      <div class="kpi-value" style="color:var(--cond-c)">${counts.C}</div>
-      <div class="kpi-sub">Perlu restock segera</div>
-    </div>
-    <div class="kpi-card cond-d">
-      <div class="kpi-label">D — Idle</div>
-      <div class="kpi-value" style="color:var(--cond-d)">${counts.D}</div>
-      <div class="kpi-sub">Stok ada, demand tidak ada</div>
-    </div>
-    <div class="kpi-card restock">
-      <div class="kpi-label">Total Restock Needed</div>
-      <div class="kpi-value" style="color:var(--cream-bold)">${fmt(totalRestock)}</div>
-      <div class="kpi-sub">unit perlu diintake</div>
-    </div>
+// ═══════════════════════════════════════════════
+// RENDER ALL PAGES
+// ═══════════════════════════════════════════════
+function renderAll(){renderOverview();renderSKU();renderWSSI();renderAlert();}
+
+function renderOverview() {
+  const cnt={A:0,B:0,C:0,D:0};
+  ALL.forEach(d=>cnt[d.condition]++);
+  const totRS=ALL.reduce((s,d)=>s+(d.restock||0),0);
+  const totRev=ALL.reduce((s,d)=>s+(d.total_value||0),0);
+  const totFC=ALL.reduce((s,d)=>s+(d.forecastWk||0),0);
+  const tot=ALL.length;
+
+  const segs=[
+    {label:'A — Maintain', n:cnt.A, color:'#264C47'},
+    {label:'B — Push',     n:cnt.B, color:'#8B5E0A'},
+    {label:'C — Replenish',n:cnt.C, color:'#B83030'},
+    {label:'D — Idle',     n:cnt.D, color:'#B0A899'},
+  ];
+  const dTot=segs.reduce((s,d)=>s+d.n,0)||1;
+
+  const top10=[...ALL].sort((a,b)=>b.total_value-a.total_value).slice(0,10);
+  const mx=top10[0]?.total_value||1;
+  const top10fc=[...ALL].filter(d=>d.forecastWk>0).sort((a,b)=>b.forecastWk-a.forecastWk).slice(0,10);
+  const mxf=top10fc[0]?.forecastWk||1;
+
+  document.getElementById('page-overview').innerHTML=`
+  <div class="krow">
+    <div class="kc kt"><div class="kl">Total SKU Aktif</div><div class="kv" style="color:var(--bb)">${tot}</div><div class="ks">Top ${TOP_N} by revenue</div></div>
+    <div class="kc kf"><div class="kl">Forecast Minggu Ini</div><div class="kv" style="color:var(--gs);font-size:18px">${fN(totFC)}</div><div class="ks">unit diperkirakan terjual</div></div>
+    <div class="kc ka"><div class="kl">A — Maintain</div><div class="kv" style="color:var(--ca)">${cnt.A}</div><div class="ks">${Math.round(cnt.A/tot*100)}% portofolio</div></div>
+    <div class="kc kb"><div class="kl">B — Push</div><div class="kv" style="color:var(--cb2)">${cnt.B}</div><div class="ks">Stok tinggi, sales lambat</div></div>
+    <div class="kc kc2"><div class="kl">C — Replenish</div><div class="kv" style="color:var(--cc)">${cnt.C}</div><div class="ks">Perlu restock segera</div></div>
+    <div class="kc kd"><div class="kl">D — Idle</div><div class="kv" style="color:var(--cd)">${cnt.D}</div><div class="ks">Stok ada, demand tidak ada</div></div>
+    <div class="kc kr"><div class="kl">Total Restock Needed</div><div class="kv" style="color:var(--cb);font-size:18px">${fN(totRS)}</div><div class="ks">unit perlu diintake</div></div>
   </div>
-
-  <div class="controls-bar">
-    <div class="search-wrap">
-      <span class="search-icon">⌕</span>
-      <input type="text" placeholder="Cari SKU..." value="${searchTerm}" oninput="onSearch(this.value)">
-    </div>
-    <div class="filter-group">
-      <button class="filter-btn ${currentFilter==='ALL'?'active-all':''}" onclick="setFilter('ALL')">Semua (${allData.length})</button>
-      <button class="filter-btn ${currentFilter==='A'?'active-a':''}" onclick="setFilter('A')">A Maintain (${counts.A})</button>
-      <button class="filter-btn ${currentFilter==='B'?'active-b':''}" onclick="setFilter('B')">B Push (${counts.B})</button>
-      <button class="filter-btn ${currentFilter==='C'?'active-c':''}" onclick="setFilter('C')">C Replenish (${counts.C})</button>
-      <button class="filter-btn ${currentFilter==='D'?'active-d':''}" onclick="setFilter('D')">D Idle (${counts.D})</button>
-    </div>
-    <select class="sort-select" onchange="onSort(this.value)">
-      <option value="rank"        ${sortCol==='rank'       ?'selected':''}>Sort: Revenue Rank ↑</option>
-      <option value="total_value" ${sortCol==='total_value'?'selected':''}>Sort: Revenue ↓</option>
-      <option value="wc"          ${sortCol==='wc'         ?'selected':''}>Sort: Weeks Cover ↑</option>
-      <option value="restock"     ${sortCol==='restock'    ?'selected':''}>Sort: Restock Needed ↓</option>
-      <option value="avg5w"       ${sortCol==='avg5w'      ?'selected':''}>Sort: Avg 5W ↓</option>
-    </select>
-  </div>
-
-  <div class="table-wrap">
-    <div class="table-header-bar">
-      <div class="table-title">Detail SKU — ${currentFilter==='ALL'?'Semua Kondisi':'Kondisi '+currentFilter+' '+COND_LABEL[currentFilter]}</div>
-      <div class="table-count">Menampilkan ${startIdx+1}–${Math.min(startIdx+PAGE_SIZE,filtered.length)} dari ${filtered.length} SKU</div>
-    </div>
-    <div style="overflow-x:auto">
-    <table>
-      <thead><tr>
-        <th class="${thClass('rank')}"        onclick="toggleSort('rank')">#</th>
-        <th class="${thClass('sku')}"         onclick="toggleSort('sku')">SKU</th>
-        <th class="${thClass('qty')}"         onclick="toggleSort('qty')"  style="text-align:right">Qty YTD</th>
-        <th class="${thClass('total_value')}" onclick="toggleSort('total_value')" style="text-align:right">Revenue YTD</th>
-        <th class="${thClass('avail')}"       onclick="toggleSort('avail')" style="text-align:right">Avail Stock</th>
-        <th class="${thClass('avg_2026')}"    onclick="toggleSort('avg_2026')" style="text-align:right">Avg/Wk 2026</th>
-        <th class="${thClass('avg5w')}"       onclick="toggleSort('avg5w')" style="text-align:right">Avg 5W</th>
-        <th class="${thClass('wc')}"          onclick="toggleSort('wc')">Weeks Cover</th>
-        <th class="${thClass('condition')}"   onclick="toggleSort('condition')">Kondisi</th>
-        <th class="${thClass('restock')}"     onclick="toggleSort('restock')">Restock</th>
-        <th>Rekomendasi</th>
-      </tr></thead>
-      <tbody>${tableRows || '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--text-muted)">Tidak ada data yang cocok</td></tr>'}</tbody>
-    </table>
-    </div>
-    ${totalPages > 1 ? `
-    <div class="pagination">
-      <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹ Prev</button>
-      ${pagBtns}
-      <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>Next ›</button>
-      <span class="page-info">Hal. ${currentPage} / ${totalPages}</span>
-    </div>` : ''}
-  </div>
-
-  <div class="charts-row">
-    <div class="chart-card">
-      <div class="chart-title">Distribusi Kondisi Portofolio</div>
-      <div class="donut-wrap">
-        <svg class="donut-svg" width="140" height="140" viewBox="0 0 140 140">
-          <circle cx="70" cy="70" r="50" fill="var(--gray-100)"/>
-          ${donutPaths}
-          <circle cx="70" cy="70" r="28" fill="var(--white)"/>
-          <text x="70" y="67" text-anchor="middle" font-size="18" font-weight="700" fill="var(--green-bold)" font-family="Georgia,serif">${total}</text>
-          <text x="70" y="80" text-anchor="middle" font-size="9" fill="var(--text-muted)" font-family="sans-serif">SKU</text>
-        </svg>
-        <div class="donut-legend">
-          ${donutData.map(d=>`
-          <div class="donut-item">
-            <div class="donut-dot" style="background:${d.color}"></div>
-            <div class="donut-label">${d.label}</div>
-            <div class="donut-pct" style="color:${d.color}">${d.pct}%</div>
-            <div class="donut-count">(${d.count})</div>
-          </div>`).join('')}
-        </div>
+  <div class="chrow">
+    <div class="ch">
+      <div class="cht">Distribusi kondisi</div>
+      <div class="dw">${donut(segs)}
+        <div class="dl">${segs.map(s=>`<div class="di">
+          <div class="dd" style="background:${s.color}"></div>
+          <div class="dl2">${s.label}</div>
+          <div class="dp" style="color:${s.color}">${Math.round(s.n/dTot*100)}%</div>
+          <div class="dc">(${s.n})</div>
+        </div>`).join('')}</div>
       </div>
     </div>
-    <div class="chart-card">
-      <div class="chart-title">Top 10 SKU by Revenue</div>
-      ${topSku.map(d=>`
-      <div class="bar-item">
-        <div class="bar-header">
-          <span class="bar-sku">#${d.rank} ${d.sku}</span>
-          <span class="bar-val">${fmtRp(d.total_value)}</span>
+    <div class="ch">
+      <div class="cht">Top 10 Revenue</div>
+      ${top10.map(d=>`<div class="bi">
+        <div class="bh"><span class="bs" style="color:${wcCol(d.condition)}">#${d.rank} ${d.sku}</span><span class="bv">${fRp(d.total_value)}</span></div>
+        <div class="btr"><div class="bf" style="width:${Math.round(d.total_value/mx*100)}%;background:${wcCol(d.condition)}"></div></div>
+      </div>`).join('')}
+    </div>
+    <div class="ch">
+      <div class="cht">Top 10 Forecast Minggu Ini</div>
+      ${top10fc.map(d=>`<div class="bi">
+        <div class="bh">
+          <span class="bs">#${d.rank} ${d.sku} ${d.upliftLabel?`<span class="pup">${d.upliftLabel}</span>`:''}</span>
+          <span class="bv" style="color:var(--bb)">${fN(d.forecastWk)} unit</span>
         </div>
-        <div class="bar-track">
-          <div class="bar-fill ${d.condition==='C'?'warning':''}" style="width:${Math.round(d.total_value/maxVal*100)}%"></div>
-        </div>
+        <div class="btr"><div class="bf" style="width:${Math.round(d.forecastWk/mxf*100)}%;background:var(--bb)"></div></div>
       </div>`).join('')}
     </div>
   </div>`;
 }
 
-// ═══════════════════════════════════════════════════════
-// INTERACTION
-// ═══════════════════════════════════════════════════════
-function setFilter(f) { currentFilter = f; applyFilters(); renderAll(); }
-function onSearch(v) { searchTerm = v; applyFilters(); renderAll(); }
-function onSort(col) {
-  sortCol = col;
-  sortDir = (col === 'rank' || col === 'wc') ? 'asc' : 'desc';
-  applyFilters(); renderAll();
-}
-function goPage(p) {
-  const t = Math.ceil(filtered.length / PAGE_SIZE);
-  if (p < 1 || p > t) return;
-  currentPage = p;
-  renderAll();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-function toggleSort(col) {
-  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-  else { sortCol = col; sortDir = col === 'rank' || col === 'wc' ? 'asc' : 'desc'; }
-  applyFilters(); renderAll();
+function renderSKU() {
+  const cnt={A:0,B:0,C:0,D:0};
+  ALL.forEach(d=>cnt[d.condition]++);
+  const start=(pg-1)*PG, end=Math.min(start+PG,filtered.length);
+  const pgData=filtered.slice(start,end);
+  const totPg=Math.ceil(filtered.length/PG);
+
+  const rows=pgData.map(d=>{
+    const wc=d.wc>=9999?'∞':d.wc===0?'0.0':d.wc.toFixed(1);
+    const wcc=wcCol(d.condition);
+    return `<tr>
+      <td class="rk">${d.rank}</td>
+      <td class="sk">${d.sku}</td>
+      <td class="nm">${fN(d.qty)}</td>
+      <td class="nm">${fRp(d.total_value)}</td>
+      <td class="nm">${fN(d.avail)}</td>
+      <td class="nm">${d.avg5w.toFixed(1)}</td>
+      <td><div class="ww"><div class="wn" style="color:${wcc}">${wc}x</div>
+        <div class="wbg"><div class="wf" style="width:${wcW(d.wc)}%;background:${wcc}"></div></div></div></td>
+      <td><span class="bdg b${d.condition}"><span class="bdd"></span>${d.condition} ${CLABEL[d.condition]}</span></td>
+      <td><span class="pill ${d.restock>0?'pneed':'pzero'}">${d.restock>0?'+'+fN(d.restock):'—'}</span></td>
+      <td><span class="pill ${d.intakeWk>0?'pintake':'pzero'}">${d.intakeWk>0?'+'+fN(d.intakeWk):'—'}</span></td>
+      <td>
+        <span class="pill pfc">${fN(d.forecastWk)}</span>
+        ${d.upliftLabel?`<span class="pup">${d.upliftLabel}</span>`:''}
+      </td>
+      <td class="rc">
+        <div class="rl">Sales</div><div class="rs">${d.rec_s}</div>
+        <div class="rl" style="margin-top:3px">Purchasing</div><div class="rp">${d.rec_p}</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  let pages=[];
+  if(totPg<=7){for(let i=1;i<=totPg;i++)pages.push(i);}
+  else{pages=[1];if(pg>3)pages.push('…');for(let i=Math.max(2,pg-1);i<=Math.min(totPg-1,pg+1);i++)pages.push(i);if(pg<totPg-2)pages.push('…');pages.push(totPg);}
+  const pgBtns=pages.map(p=>p==='…'?`<span style="color:var(--mt);padding:0 3px">…</span>`
+    :`<button class="pgb ${p===pg?'act':''}" onclick="goPg(${p})">${p}</button>`).join('');
+
+  document.getElementById('page-sku').innerHTML=`
+  <div class="ctrl">
+    <div class="sw"><span class="si">⌕</span><input type="text" placeholder="Cari SKU..." value="${srch}" oninput="doSrch(this.value)"></div>
+    <div class="fg">
+      <button class="fb2 ${filt==='ALL'?'fa':''}" onclick="doFilt('ALL')">Semua (${ALL.length})</button>
+      <button class="fb2 ${filt==='A'?'fA':''}" onclick="doFilt('A')">A Maintain (${cnt.A})</button>
+      <button class="fb2 ${filt==='B'?'fB':''}" onclick="doFilt('B')">B Push (${cnt.B})</button>
+      <button class="fb2 ${filt==='C'?'fC':''}" onclick="doFilt('C')">C Replenish (${cnt.C})</button>
+      <button class="fb2 ${filt==='D'?'fD':''}" onclick="doFilt('D')">D Idle (${cnt.D})</button>
+    </div>
+    <select class="ss" onchange="doSort(this.value)">
+      <option value="rank" ${sCol==='rank'?'selected':''}>Rank Revenue ↑</option>
+      <option value="total_value" ${sCol==='total_value'?'selected':''}>Revenue ↓</option>
+      <option value="wc" ${sCol==='wc'?'selected':''}>Weeks Cover ↑</option>
+      <option value="restock" ${sCol==='restock'?'selected':''}>Restock Needed ↓</option>
+      <option value="forecastWk" ${sCol==='forecastWk'?'selected':''}>Forecast ↓</option>
+    </select>
+  </div>
+  <div class="tw">
+    <div class="tb2">
+      <div class="tt">Detail SKU — ${filt==='ALL'?'Semua':'Kondisi '+filt+' '+CLABEL[filt]}</div>
+      <div class="tc">Menampilkan ${start+1}–${end} dari ${filtered.length} SKU</div>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr>
+        <th class="${thc('rank')}" onclick="tSort('rank')">#</th>
+        <th class="${thc('sku')}" onclick="tSort('sku')">SKU</th>
+        <th class="${thc('qty')}" onclick="tSort('qty')" style="text-align:right">Qty YTD</th>
+        <th class="${thc('total_value')}" onclick="tSort('total_value')" style="text-align:right">Revenue YTD</th>
+        <th class="${thc('avail')}" onclick="tSort('avail')" style="text-align:right">Avail Stock</th>
+        <th class="${thc('avg5w')}" onclick="tSort('avg5w')" style="text-align:right">Avg 5W</th>
+        <th class="${thc('wc')}" onclick="tSort('wc')">Weeks Cover</th>
+        <th class="${thc('condition')}" onclick="tSort('condition')">Kondisi</th>
+        <th class="${thc('restock')}" onclick="tSort('restock')">Restock</th>
+        <th class="${thc('intakeWk')}" onclick="tSort('intakeWk')">Intake W${ALL[0]?.curWk||''}</th>
+        <th class="${thc('forecastWk')}" onclick="tSort('forecastWk')">Forecast W${ALL[0]?.curWk||''}</th>
+        <th>Rekomendasi</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--mt)">Tidak ada data</td></tr>'}</tbody>
+    </table></div>
+    ${totPg>1?`<div class="pag">
+      <button class="pgb" onclick="goPg(${pg-1})" ${pg===1?'disabled':''}>‹</button>
+      ${pgBtns}
+      <button class="pgb" onclick="goPg(${pg+1})" ${pg===totPg?'disabled':''}>›</button>
+      <span class="pgi">Hal ${pg}/${totPg}</span>
+    </div>`:''}
+  </div>`;
 }
 
-// ── INIT ──
-loadData();
+function renderWSVI_rows(skus, weekNums) {
+  return skus.slice(0,20).map(d=>{
+    const wkCells = weekNums.map(wk=>{
+      const isCur = wk===d.curWk;
+      const cls = isCur?'cur-wk':'';
+      if (wk===d.curWk) {
+        const cs = d.closingStock;
+        const pos = cs > 0;
+        return `<td class="nm ${cls}">
+          <div style="font-size:10px;color:var(--mt)">+${fN(d.intakeWk)}/−${fN(d.forecastWk)}</div>
+          <div class="${pos?'wssi-pos':'wssi-neg'}">${fN(cs)}</div>
+        </td>`;
+      }
+      return `<td class="nm ${cls}">—</td>`;
+    }).join('');
+    return `<tr>
+      <td class="rk">${d.rank}</td>
+      <td class="sk">${d.sku}</td>
+      <td class="nm">${fN(d.avail)}</td>
+      ${wkCells}
+      <td><span class="bdg b${d.condition}"><span class="bdd"></span>${d.condition}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderWSII() {
+  const curWk = ALL[0]?.curWk || 0;
+  const weekNums = [curWk-1, curWk, curWk+1, curWk+2];
+  const critSku = ALL.filter(d=>d.condition==='C').sort((a,b)=>a.rank-b.rank);
+  const allForWSII = ALL.filter(d=>d.condition!=='D').sort((a,b)=>a.rank-b.rank);
+
+  const thWks = weekNums.map(w=>`<th style="${w===curWk?'background:#E8F4F1;color:var(--gd)':''}" class="${thc('closingStock')}">W${w}${w===curWk?' (berjalan)':''}</th>`).join('');
+
+  document.getElementById('page-wssi').innerHTML=`
+  <div style="margin-bottom:14px;padding:12px 16px;background:var(--ca-bg);border-radius:8px;font-size:12px;color:var(--gd);border-left:3px solid var(--gd)">
+    <strong>WSSI Forward-Looking</strong> — Closing Stock = Avail Stock + Intake Plan minggu ini − Forecast penjualan minggu ini.
+    Forecast dihitung dari baseline avg 5W dengan uplift otomatis untuk Twin Date dan Payday berdasarkan data historis 2026.
+  </div>
+  <div class="wssi-wrap">
+    <div class="wssi-title">
+      Top 20 SKU — WSSI Closing Stock
+      <span class="wssi-note">Kolom W${curWk} = minggu berjalan · Hijau = stok aman · Merah = perlu perhatian</span>
+    </div>
+    <div class="wssi-tbl" style="overflow-x:auto"><table>
+      <thead><tr>
+        <th>#</th><th>SKU</th>
+        <th style="text-align:right">Avail Stock</th>
+        ${thWks}
+        <th>Kondisi</th>
+      </tr></thead>
+      <tbody>${renderWSVI_rows(allForWSII, weekNums)}</tbody>
+    </table></div>
+  </div>
+  <div class="wssi-wrap">
+    <div class="wssi-title" style="color:var(--cc)">
+      SKU Kondisi C — Perlu Immediate Action
+      <span class="wssi-note">${critSku.length} SKU · Closing stock sudah atau akan kosong</span>
+    </div>
+    <div class="wssi-tbl" style="overflow-x:auto"><table>
+      <thead><tr>
+        <th>#</th><th>SKU</th>
+        <th style="text-align:right">Avail Stock</th>
+        ${thWks}
+        <th>Kondisi</th>
+      </tr></thead>
+      <tbody>${renderWSVI_rows(critSku, weekNums)}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function renderWSII_alias() { renderWSII(); }
+
+function renderWSII() {
+  const curWk = ALL[0]?.curWk || 0;
+  const weekNums = [curWk-1, curWk, curWk+1, curWk+2];
+  const critSku = ALL.filter(d=>d.condition==='C').sort((a,b)=>a.rank-b.rank);
+  const allForWSII = ALL.filter(d=>d.condition!=='D').sort((a,b)=>a.rank-b.rank);
+
+  function wsiRows(skus) {
+    return skus.slice(0,20).map(d=>{
+      const cells = weekNums.map(wk=>{
+        const isCur=wk===d.curWk;
+        const cls=isCur?'cur-wk':'';
+        if (isCur) {
+          const pos=d.closingStock>0;
+          return `<td class="nm ${cls}">
+            <div style="font-size:9px;color:var(--mt)">+${fN(d.intakeWk)} / −${fN(d.forecastWk)}</div>
+            <div class="${pos?'wssi-pos':'wssi-neg'}" style="font-size:12px">${fN(d.closingStock)}</div>
+          </td>`;
+        }
+        return `<td class="nm ${cls}" style="color:var(--g4)">—</td>`;
+      }).join('');
+      return `<tr>
+        <td class="rk">${d.rank}</td><td class="sk">${d.sku}</td>
+        <td class="nm">${fN(d.avail)}</td>${cells}
+        <td><span class="bdg b${d.condition}"><span class="bdd"></span>${d.condition}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  const thWks=weekNums.map(w=>`<th style="text-align:right${w===curWk?';background:#E8F4F1;color:var(--gd)':''}">${w===curWk?`W${w} ★`:`W${w}`}</th>`).join('');
+
+  document.getElementById('page-wssi').innerHTML=`
+  <div style="margin-bottom:14px;padding:12px 16px;background:var(--ca-bg);border-radius:8px;font-size:12px;color:var(--gd);border-left:3px solid var(--gd)">
+    <strong>WSSI Forward-Looking</strong> · Closing Stock = Avail + Intake W${curWk} − Forecast W${curWk}.
+    Uplift forecast otomatis: <strong>Twin Date</strong> (tanggal kembar) dan <strong>Payday</strong> (tgl 25) dihitung dari rasio historis masing-masing SKU vs hari normal.
+  </div>
+  <div class="wssi-wrap">
+    <div class="wssi-title">Top 20 SKU — WSSI Closing Stock <span class="wssi-note">★ = minggu berjalan · +intake / −forecast</span></div>
+    <div class="wssi-tbl" style="overflow-x:auto"><table>
+      <thead><tr><th>#</th><th>SKU</th><th style="text-align:right">Avail</th>${thWks}<th>Kondisi</th></tr></thead>
+      <tbody>${wsiRows(allForWSII)}</tbody>
+    </table></div>
+  </div>
+  <div class="wssi-wrap">
+    <div class="wssi-title" style="color:var(--cc)">🔴 Kondisi C — Closing Stock Kritis <span class="wssi-note">${critSku.length} SKU</span></div>
+    <div class="wssi-tbl" style="overflow-x:auto"><table>
+      <thead><tr><th>#</th><th>SKU</th><th style="text-align:right">Avail</th>${thWks}<th>Kondisi</th></tr></thead>
+      <tbody>${wsiRows(critSku)}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function renderAlert() {
+  function grid(items,bg,border,tc) {
+    return items.map(d=>`<div class="al-item" style="background:${bg};border-color:${border}">
+      <div style="color:${tc}">#${d.rank} ${d.sku}</div>
+      <div class="al-rev">${fRp(d.total_value)}</div>
+      <div class="al-wc" style="color:${tc}">WC: ${d.wc>=9999?'∞':d.wc.toFixed(1)}x · RS: ${d.restock>0?'+'+fN(d.restock):'—'}</div>
+      <div class="al-fc">FC W${d.curWk}: ${fN(d.forecastWk)} unit${d.upliftLabel?' · '+d.upliftLabel:''}</div>
+    </div>`).join('');
+  }
+  const C=ALL.filter(d=>d.condition==='C').sort((a,b)=>a.rank-b.rank);
+  const B=ALL.filter(d=>d.condition==='B').sort((a,b)=>a.rank-b.rank);
+  const D=ALL.filter(d=>d.condition==='D').sort((a,b)=>a.rank-b.rank);
+
+  document.getElementById('page-alert').innerHTML=`
+  <div class="al-card">
+    <div class="al-ttl" style="color:var(--cc)">🔴 C — Replenish Segera <span class="al-chip" style="background:var(--cc-bg);color:var(--cc)">${C.length} SKU</span></div>
+    <div style="font-size:11px;color:var(--mt);margin-bottom:10px"><strong>Sales:</strong> Jaga demand, pertahankan promo. <strong>Purchasing:</strong> Emergency reorder — eskalasi ke manager sekarang.</div>
+    <div class="al-grid">${grid(C,'#FDECEA','#E8A8A8','#B83030')}</div>
+  </div>
+  <div class="al-card">
+    <div class="al-ttl" style="color:var(--cb2)">🟡 B — Push Penjualan <span class="al-chip" style="background:var(--cb-bg);color:var(--cb2)">${B.length} SKU</span></div>
+    <div style="font-size:11px;color:var(--mt);margin-bottom:10px"><strong>Sales:</strong> Boost iklan, flash sale, bundling. <strong>Purchasing:</strong> Tahan semua PO baru sampai WC turun di bawah 12.</div>
+    <div class="al-grid">${grid(B,'#FEF3DC','#D4A84B','#8B5E0A')}</div>
+  </div>
+  <div class="al-card">
+    <div class="al-ttl" style="color:var(--cd)">⚫ D — Idle / Review Strategis <span class="al-chip" style="background:var(--cd-bg);color:var(--cd)">${D.length} SKU</span></div>
+    <div style="font-size:11px;color:var(--mt);margin-bottom:10px"><strong>Sales:</strong> Clearance, reposition, atau discontinue. <strong>Purchasing:</strong> Stop semua PO — keputusan butuh level Manager/CEO.</div>
+    <div class="al-grid">${grid(D,'#EEEBE6','#B0A899','#5F5955')}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════════════
+function showPage(id,btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('act'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('act'));
+  document.getElementById('page-'+id).classList.add('act');
+  btn.classList.add('act');
+}
+function doFilt(f){filt=f;applyFilt();renderSKU();}
+function doSrch(v){srch=v;applyFilt();renderSKU();}
+function doSort(col){sCol=col;sDir=col==='rank'||col==='wc'?'asc':'desc';applyFilt();renderSKU();}
+function tSort(col){if(sCol===col)sDir=sDir==='asc'?'desc':'asc';else{sCol=col;sDir=col==='rank'||col==='wc'?'asc':'desc';}applyFilt();renderSKU();}
+function goPg(p){const t=Math.ceil(filtered.length/PG);if(p<1||p>t)return;pg=p;renderSKU();window.scrollTo({top:0,behavior:'smooth'});}
+
+init();
 </script>
 </body>
 </html>
