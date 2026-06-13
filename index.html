@@ -484,28 +484,63 @@ async function loadData() {
     setMsg('Memuat data stok harian...', 65);
 
     // ── Parse daily_stock ──
+    // Struktur: date(0) | month(1) | week(2) | SKU(3) | available_stock(4)
     const sthi = findHeader(stockRows, 'date', 'sku');
     if (sthi < 0) {
-      const dbg = debugRows(stockRows, 'daily_stock');
-      throw new Error('Header tidak ditemukan di tab daily_stock. Baris pertama: ' + (stockRows[0]||[]).slice(0,5).join(' | '));
+      throw new Error('Header tidak ditemukan di tab daily_stock. Baris pertama: ' + (stockRows[0]||[]).slice(0,6).join(' | '));
     }
     const sthdr = stockRows[sthi].map(c => c.toLowerCase().trim());
-    const stDate  = sthdr.findIndex(c => c === 'date');
-    const stSku   = sthdr.findIndex(c => c === 'sku');
-    const stStock = sthdr.findIndex(c => /avail|stock/.test(c));
 
+    // Deteksi kolom secara eksplisit dari nama header
+    let stDate  = sthdr.findIndex(c => c === 'date');
+    let stSku   = sthdr.findIndex(c => c === 'sku');
+    let stStock = sthdr.findIndex(c => /available.?stock|avail.?stock|stok|stock/i.test(c));
+
+    // Fallback ke posisi kolom yang diketahui dari struktur daily_stock
+    // date=0, month=1, week=2, SKU=3, available_stock=4
+    if (stDate  < 0) stDate  = 0;
+    if (stSku   < 0) stSku   = 3;
+    if (stStock < 0) stStock = 4;
+
+    // Log header untuk verifikasi
+    console.log('[daily_stock] header:', sthdr.join(' | '));
+    console.log('[daily_stock] col idx — date:', stDate, 'sku:', stSku, 'stock:', stStock);
+
+    // Hanya simpan snapshot TERBARU per SKU (tanggal terbesar)
+    // Ini menghindari nilai stok lama yang sudah tidak relevan
+    const stockLatest = {}; // SKU → { date, stock }
+    for (let i = sthi + 1; i < stockRows.length; i++) {
+      const r = stockRows[i];
+      const sku = (r[stSku] || '').trim();
+      if (!sku) continue;
+      const dateStr = r[stDate] || '';
+      const stock   = pNum(r[stStock]);
+      const dt      = new Date(dateStr);
+      if (isNaN(dt.getTime())) continue;
+      // Simpan hanya jika tanggal lebih baru dari yang sudah ada
+      if (!stockLatest[sku] || dt > stockLatest[sku].date) {
+        stockLatest[sku] = { date: dt, stock };
+      }
+    }
+
+    // Konversi ke format stockBySku untuk kompatibilitas dengan calcMetrics
+    // Sekaligus simpan semua histori untuk kalkulasi stockout5w
     const stockBySku = {};
     for (let i = sthi + 1; i < stockRows.length; i++) {
       const r = stockRows[i];
-      const sku = (r[stSku >= 0 ? stSku : 3] || '').trim();
+      const sku = (r[stSku] || '').trim();
       if (!sku) continue;
-      const dateStr = r[stDate >= 0 ? stDate : 0] || '';
-      const stock = pNum(r[stStock >= 0 ? stStock : 4]);
-      const dt = new Date(dateStr);
+      const dateStr = r[stDate] || '';
+      const stock   = pNum(r[stStock]);
+      const dt      = new Date(dateStr);
       if (isNaN(dt.getTime())) continue;
       if (!stockBySku[sku]) stockBySku[sku] = [];
       stockBySku[sku].push({ date: dt, stock });
     }
+
+    // Debug: cek HQJ
+    console.log('[daily_stock] HQJ latest:', stockLatest['HQJ']);
+    console.log('[daily_stock] HQJ rows:', (stockBySku['HQJ']||[]).slice(-3));
 
     // ── Hitung metrics per SKU ──
     setMsg('Menghitung WC, avg5w, restock...', 88);
