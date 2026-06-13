@@ -426,87 +426,13 @@ async function loadData() {
     </div>`;
 
   try {
-    // 1. Fetch tab dashboard untuk rank 1-300 (rank by revenue YTD)
-    setMsg('Memuat ranking SKU...', 15);
-    const dashRows = await fetchCSV(GID_DASH, 'dashboard');
-    setMsg('Memuat data penjualan harian...', 30);
+    // Hitung rank langsung dari daily_sale — tidak perlu tab dashboard
+    setMsg('Memuat data penjualan harian...', 20);
     const saleRows = await fetchCSV(GID_SALE, 'daily_sale');
-    setMsg('Memuat data stok harian...', 55);
+    setMsg('Memuat data stok harian...', 70);
     const stockRows = await fetchCSV(GID_STOCK, 'daily_stock');
-    setMsg('Menghitung metrics...', 75);
 
-    // ── Parse dashboard: ambil top 300 SKU by rank ──
-    // Strategi: cari baris header yang mengandung kata "rank" ATAU "sku"
-    // Jika tidak ketemu, coba deteksi otomatis dari baris yang berisi angka di kolom rank
-    let dhi = -1;
-    // Coba cari header dengan berbagai kombinasi keyword
-    const dashHeaderCandidates = [
-      ['rank','sku'],           // exact match
-      ['rank','total'],         // "Rank | Total City Sales"
-      ['rank','value'],         // "Rank | Total Value Sales"
-      ['rank','avg'],           // "Rank | Avg Sale"
-      ['rank','avail'],         // "Rank | Avail Stock"
-      ['rank','wks'],           // "Rank | Wks Cover"
-      ['rank','restock'],       // "Rank | Restock"
-      ['rank'], ['sku'],        // single keyword fallback
-    ];
-    for (const kws of dashHeaderCandidates) {
-      dhi = findHeader(dashRows, ...kws);
-      if (dhi >= 0) break;
-    }
-
-    // Fallback: jika tidak ada header sama sekali, asumsikan baris 0 adalah header
-    // atau baris pertama yang kolom pertamanya bukan angka
-    if (dhi < 0) {
-      for (let i = 0; i < Math.min(dashRows.length, 5); i++) {
-        const firstCol = (dashRows[i][0] || '').trim();
-        if (isNaN(pNum(firstCol)) || firstCol === '') { dhi = i; break; }
-      }
-    }
-    if (dhi < 0) dhi = 0; // last resort
-
-    // Deteksi kolom dari header row
-    const dhdr = dashRows[dhi].map(c => c.toLowerCase().trim());
-    // Nama kolom aktual di tab dashboard (baris 11):
-    // Rank | SKU | Total City Sales | Total Value Sales | Avail Stock | Avg Sale 2026 | Avg Sale 5W | Wks Cover | Restock Needed
-    let iRank = dhdr.findIndex(c => /rank/.test(c));
-    let iSku  = dhdr.findIndex(c => /sku/.test(c));
-    let iQty  = dhdr.findIndex(c => /city.?sales|qty|quantity|total.?qty/.test(c));
-    let iRev  = dhdr.findIndex(c => /value.?sales|revenue|total.?value/.test(c));
-
-    // Fallback ke posisi kolom berdasarkan struktur yang diketahui
-    if (iRank < 0) iRank = 0;  // kolom A
-    if (iSku  < 0) iSku  = 1;  // kolom B
-    if (iQty  < 0) iQty  = 2;  // kolom C = Total City Sales
-    if (iRev  < 0) iRev  = 3;  // kolom D = Total Value Sales
-
-    const rankMap = {}; // SKU → { rank, qty, rev }
-    for (let i = dhi + 1; i < dashRows.length; i++) {
-      const r = dashRows[i];
-      const sku  = (r[iSku] || '').trim();
-      const rank = pNum(r[iRank]);
-      if (!sku || !rank || rank > TOP_N) continue;
-      if (EXCLUDED.has(sku.toUpperCase())) continue;
-      if (sku.toUpperCase().startsWith('ACC-')) continue;
-      rankMap[sku] = rank;
-    }
-
-    // Jika masih kosong, coba tanpa filter rank (mungkin rank > TOP_N)
-    if (Object.keys(rankMap).length === 0) {
-      for (let i = dhi + 1; i < dashRows.length; i++) {
-        const r = dashRows[i];
-        const sku  = (r[iSku] || '').trim();
-        const rank = pNum(r[iRank]);
-        if (!sku || !rank) continue;
-        if (EXCLUDED.has(sku.toUpperCase())) continue;
-        if (sku.toUpperCase().startsWith('ACC-')) continue;
-        rankMap[sku] = rank;
-        if (Object.keys(rankMap).length >= TOP_N) break;
-      }
-    }
-
-    if (Object.keys(rankMap).length === 0)
-      throw new Error('Tidak ada SKU ditemukan di tab dashboard. Cek: (1) sheet sudah publik, (2) GID benar: ' + GID_DASH);
+    // ── Rank dihitung dari revenue YTD daily_sale (lihat blok di bawah) ──
 
     // ── Parse daily_sale ──
     const shi = findHeader(saleRows, 'date', 'sku');
@@ -533,6 +459,29 @@ async function loadData() {
       if (!saleBySku[sku]) saleBySku[sku] = [];
       saleBySku[sku].push({ date: dt, qty, rev });
     }
+
+    // ── Hitung rank per SKU berdasarkan total revenue YTD ──
+    // Exclude SKU barang setengah jadi
+    const revBySku = {};
+    for (const [sku, rows] of Object.entries(saleBySku)) {
+      const skuU = sku.toUpperCase();
+      if (EXCLUDED.has(skuU)) continue;
+      if (skuU.startsWith('ACC-')) continue;
+      revBySku[sku] = rows.reduce((s, r) => s + r.rev, 0);
+    }
+    // Urutkan by revenue descending → beri rank
+    const rankMap = {};
+    Object.entries(revBySku)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, TOP_N)
+      .forEach(([sku, rev], idx) => {
+        rankMap[sku] = idx + 1; // rank mulai dari 1
+      });
+
+    if (Object.keys(rankMap).length === 0)
+      throw new Error('Tidak ada data penjualan di tab daily_sale. Pastikan sheet sudah publik dan ada data 2026.');
+
+    setMsg('Memuat data stok harian...', 65);
 
     // ── Parse daily_stock ──
     const sthi = findHeader(stockRows, 'date', 'sku');
