@@ -501,7 +501,8 @@ function deriveCondition(row) {
       (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C'; // drop tajam
 
   // ── B (Push): stok berlebih ──
-  if (wc > WC_AMAN_MAX) return 'B';
+  if(wc>WC_IDLE) return 'B';
+  if(wc>WC_AMAN) return 'B';
 
   // ── A (Maintain): sehat ──
   return 'A';
