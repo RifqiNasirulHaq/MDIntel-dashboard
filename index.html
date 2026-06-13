@@ -459,29 +459,52 @@ let sortDir = 'asc';
 let currentPage = 1;
 const PAGE_SIZE = 25;
 
+// ── SKU BARANG SETENGAH JADI — dikecualikan dari analisa ──
+const EXCLUDED_SKU = new Set([
+  'HQJ-NON-ASB','INNER-A4-ALHIFZ-JAKET','INNER-A5-ALHIFZ-HVSWARNA-JAKET',
+  'INNER-A5-BUKHARA-KERUT','INR-0001','INR-0002','INR-0006','INR-0007',
+  'INR-0009','INR-0010','INR-0011','INR-0012','INR-0015','INR-0016',
+  'INR-0018','INR-0019','INR-0020','INR-0021','INR-0022','INR-0023',
+  'INR-0027','INR-0035','INR-0036','SISIPAN-D1','SISIPAN-D10','SISIPAN-D5',
+  'SISIPAN-D6','SISIPAN-D7','SISIPAN-D8','SISIPAN-D9'
+]);
+
 // ═══════════════════════════════════
-// LOGIKA KONDISI (revisi)
+// LOGIKA KONDISI (revisi final)
+//
+// Hierarki:
+//   D (Idle)      : stok ADA tapi TIDAK ada penjualan sama sekali (qty=0 & avg5w=0 & avg2026=0)
+//   C (Replenish) : demand ADA (qty>0 atau avg2026>0) tapi stok habis ATAU WC kritis
+//   B (Push)      : stok berlebih (WC > threshold)
+//   A (Maintain)  : kondisi sehat
+//
+// Sinyal demand menggunakan: avg5w, avg_2026, DAN qty dari dashboard
+// (qty adalah total penjualan YTD — lebih reliable dari avg yang bisa 0 karena stockout)
 // ═══════════════════════════════════
 function deriveCondition(row) {
-  const { wc, avg5w, avg_2026 } = row;
+  const { wc, avg5w, avg_2026, avail, qty } = row;
 
-  // D: tidak ada penjualan sama sekali DAN avg2026 rendah → demand memang tidak ada
-  if(avg5w===0 && avail>0)  return 'D';
+  // Demand ada jika salah satu sinyal positif
+  const demandAda = (avg5w > 0) || (avg_2026 >= AVG26_MIN) || (qty >= 10);
 
-  // C: avg5w = 0 TAPI avg2026 cukup tinggi → stok kosong, demand sebetulnya ada
-  if (avg5w === 0 && avg_2026 >= AVG26_MIN) return 'C';
+  // ── Kondisi D (Idle): stok ada, demand tidak ada ──
+  // Syarat: avail > 0 DAN tidak ada sinyal demand sama sekali
+  if (avail > 0 && !demandAda) return 'D';
 
-  // C: penurunan tajam avg5w vs avg2026 + WC kritis → stockout-driven drop
-  if(wc===0 && avg5w>0) return 'C';
+  // ── Kondisi C (Replenish): demand ada, stok tidak cukup ──
+  // C.1: stok = 0 tapi demand ada → sudah stockout
+  if (avail === 0 && demandAda) return 'C';
 
-  // C: WC sangat kritis
-  if (wc > 0 && wc < WC_KRITIS) return 'C';
+  // C.2: WC sangat kritis (< 2 minggu) tapi masih ada sedikit stok
+  if (wc > 0 && wc < WC_KRITIS && demandAda) return 'C';
 
-  // B: stok menumpuk
-  if (wc > WC_IDLE)    return 'B';
+  // C.3: avg5w jauh di bawah avg2026 (drop >65%) DAN WC kritis → stockout-driven
+  if (avg5w > 0 && avg_2026 > 0 && (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C';
+
+  // ── Kondisi B (Push): stok berlebih ──
   if (wc > WC_AMAN_MAX) return 'B';
 
-  // A: kondisi sehat
+  // ── Kondisi A (Maintain): semua sehat ──
   return 'A';
 }
 
@@ -623,6 +646,7 @@ async function loadData() {
     // ── JOIN dashboard × intake_control by SKU ──
     const parsed = Object.values(dashMap)
       .sort((a, b) => a.rank - b.rank) // urutan awal: rank 1→300
+      .filter(d => !EXCLUDED_SKU.has(d.sku.toUpperCase())) // exclude barang setengah jadi
       .map(d => {
         const key    = d.sku.toUpperCase();
         const intake = intakeMap[key] || { avail:0, avg_2026:0, avg5w:0, wc:0, restock:0 };
