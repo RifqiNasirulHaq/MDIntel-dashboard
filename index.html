@@ -435,75 +435,33 @@
 </div>
 
 <script>
-// ═══════════════════════════════════
-// KONFIGURASI
-// ═══════════════════════════════════
-const SHEET_ID       = '1wqhs70hjgTE13_BXTPflPJGqZ6i7YIj1jQZ3vs-sgAU';
-const GID_DASHBOARD  = '1636358761';  // tab dashboard  : rank, SKU, qty, revenue
-const GID_INTAKE     = '1043734254';  // tab intake_control: avail, avg26, avg5w, WC, restock
+const SHEET_ID = '1wqhs70hjgTE13_BXTPflPJGqZ6i7YIj1jQZ3vs-sgAU';
+const API_KEY = '';
 
 // ── THRESHOLDS ──
-const WC_KRITIS      = 2;
-const WC_AMAN_MAX    = 12;
-const WC_IDLE        = 26;
-const AVG26_MIN      = 5;    // avg26 >= nilai ini → demand dianggap ada
-const DROP_RATIO     = 0.35; // avg5w < 35% dari avg26 + WC kritis → stockout-driven
+const WC_KRITIS = 2;
+const WC_AMAN_MAX = 12;
+const WC_IDLE = 26;
 
 // ── STATE ──
 let allData = [];
 let filtered = [];
 let currentFilter = 'ALL';
 let searchTerm = '';
-let sortCol = 'rank';   // default: urutan revenue rank
-let sortDir = 'asc';
+let sortCol = 'total_value';
+let sortDir = 'desc';
 let currentPage = 1;
 const PAGE_SIZE = 25;
 
-// ── SKU BARANG SETENGAH JADI — dikecualikan dari analisa ──
-const EXCLUDED_SKU = new Set([
-  'HQJ-NON-ASB','INNER-A4-ALHIFZ-JAKET','INNER-A5-ALHIFZ-HVSWARNA-JAKET',
-  'INNER-A5-BUKHARA-KERUT','INR-0001','INR-0002','INR-0006','INR-0007',
-  'INR-0009','INR-0010','INR-0011','INR-0012','INR-0015','INR-0016',
-  'INR-0018','INR-0019','INR-0020','INR-0021','INR-0022','INR-0023',
-  'INR-0027','INR-0035','INR-0036','SISIPAN-D1','SISIPAN-D10','SISIPAN-D5',
-  'SISIPAN-D6','SISIPAN-D7','SISIPAN-D8','SISIPAN-D9'
-]);
-
-// ═══════════════════════════════════
-// LOGIKA KONDISI (revisi final v2)
-//
-// Sumber data per SKU:
-//   qty        : total penjualan YTD (dari tab dashboard) — sinyal demand paling reliable
-//   avg5w      : rata-rata penjualan 5 minggu terakhir (dari intake, week terbaru)
-//   avg_2026   : sum sale week terbaru (dari intake — sebagai proxy aktivitas terkini)
-//   avail      : stok tersedia saat ini (dari intake, week terbaru)
-//   wc         : weeks cover (dari intake, week terbaru)
-//
-// Hierarki kondisi:
-//   D (Idle)      : stok ADA, tidak ada penjualan sama sekali sepanjang tahun
-//   C (Replenish) : ada riwayat penjualan (demand ada) tapi stok habis atau WC kritis
-//   B (Push)      : stok berlebih relatif terhadap kecepatan jual
-//   A (Maintain)  : kondisi sehat
-// ═══════════════════════════════════
+// ── DERIVE CONDITION ──
 function deriveCondition(row) {
-  const { wc, avg5w, avg_2026, avail, qty } = row;
-
-  // Demand ada jika ada riwayat penjualan (qty adalah total YTD — tidak bisa 0 karena stockout)
-  const demandAda = qty >= 10;
-
-  // ── D (Idle): stok ada tapi tidak pernah terjual sepanjang tahun ──
-  if (avail > 0 && !demandAda) return 'D';
-
-  // ── C (Replenish): demand ada tapi stok tidak cukup ──
-  if (demandAda && avail === 0)                          return 'C'; // stockout
-  if (demandAda && wc > 0 && wc < WC_KRITIS)            return 'C'; // hampir habis
-  if (demandAda && avg5w > 0 && avg_2026 > 0 &&
-      (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C'; // drop tajam
-
-  // ── B (Push): stok berlebih ──
+  const wc = row.wc;
+  const avg5w = row.avg5w;
+  if (wc === 0 && avg5w === 0) return 'D';
+  if (wc === 0 && avg5w > 0) return 'C';
+  if (wc < WC_KRITIS && avg5w > 0) return 'C';
+  if (wc > WC_IDLE) return (avg5w === 0) ? 'D' : 'B';
   if (wc > WC_AMAN_MAX) return 'B';
-
-  // ── A (Maintain): sehat ──
   return 'A';
 }
 
@@ -515,7 +473,7 @@ function recSales(c) {
   return {
     A: 'Pertahankan momentum, jaga promo rutin',
     B: 'Boost iklan, flash sale, bundling',
-    C: 'Jaga demand; stok kosong, demand tetap ada',
+    C: 'Jaga demand, hindari sinyal stockout',
     D: 'Investigasi root cause, pertimbangkan clearance'
   }[c] || '-';
 }
@@ -525,17 +483,24 @@ function recPurchasing(c) {
     A: 'Reorder sesuai jadwal, safety stock normal',
     B: 'Tahan PO baru, pantau sell-through',
     C: 'Emergency reorder segera, eskalasi ke manager',
-    D: 'Stop semua PO, hitung potensi write-off/retur'
+    D: 'Stop semua PO, hitung potensi write-off'
   }[c] || '-';
 }
 
-// ═══════════════════════════════════
-// PARSE UTILITIES
-// ═══════════════════════════════════
+// ── PARSE INDONESIAN NUMBER ──
 function parseID(v) {
   if (v === null || v === undefined || v === '') return 0;
   const s = String(v).replace(/\./g, '').replace(',', '.');
   return parseFloat(s) || 0;
+}
+
+// ── FETCH FROM SHEETS (public CSV export) ──
+async function fetchSheet(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Gagal mengambil data');
+  const text = await r.text();
+  return parseCSV(text);
 }
 
 function parseCSV(text) {
@@ -554,173 +519,58 @@ function parseCSV(text) {
   });
 }
 
-async function fetchSheet(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP ${r.status} — GID ${gid}. Pastikan sheet diset publik.`);
-  return parseCSV(await r.text());
-}
-
-function findHeaderRow(rows, ...keywords) {
-  for (let i = 0; i < rows.length; i++) {
-    const joined = rows[i].join('|').toLowerCase();
-    if (keywords.every(kw => joined.includes(kw.toLowerCase()))) return i;
-  }
-  return -1;
-}
-
-// ═══════════════════════════════════
-// LOAD DATA — fetch dua tab, join by SKU
-// ═══════════════════════════════════
 async function loadData() {
   document.getElementById('app-content').innerHTML = `
-    <div class="state-overlay"><div class="spinner"></div><div>Memuat data dari Google Sheets...</div></div>`;
+    <div class="state-overlay"><div class="spinner"></div><div>Memuat data...</div></div>`;
 
   try {
-    // Fetch dua tab secara paralel
-    const [dashRows, intakeRows] = await Promise.all([
-      fetchSheet(GID_DASHBOARD),
-      fetchSheet(GID_INTAKE)
-    ]);
+    // Tab intake_control: gid=1043734254 — this is the main summary view
+    // Try to read the TOP 30 table which starts at row 11
+    const rows = await fetchSheet('1636358761');
 
-    // ── PARSE TAB DASHBOARD: rank, SKU, qty, revenue ──
-    const dhi = findHeaderRow(dashRows, 'rank', 'sku');
-    if (dhi < 0) throw new Error('Header tidak ditemukan di tab dashboard.');
-
-    const dashMap = {};
-    for (let i = dhi + 1; i < dashRows.length; i++) {
-      const r = dashRows[i];
-      const skuVal = (r[2] || r[1] || '').trim();
-      if (!skuVal) continue;
-      const rankVal = parseID(r[1]);
-      if (!rankVal) continue;
-      if (rankVal > 300) continue; // hanya rank 1–300
-      dashMap[skuVal.toUpperCase()] = {
-        rank      : rankVal,
-        sku       : skuVal,
-        qty       : parseID(r[3]),
-        total_value: parseID(r[4]),
-      };
-    }
-
-    if (Object.keys(dashMap).length === 0)
-      throw new Error('Tidak ada data SKU di tab dashboard (rank 1–300).');
-
-    // ── PARSE TAB INTAKE_CONTROL (format wide/pivot) ──
-    //
-    // Struktur 2 baris header:
-    //   Baris 0 (row header 1): No. | SKU | W23 | start date | end date | W24 | ...
-    //                            setiap week-block punya 5 kolom: Avail, SumSale, Avg5Wk, WksCover, Restock
-    //   Baris 1 (row header 2): #   | SKU/Product Code | Avail Stock | Sum Sale | Avg Sale 5Wk | Wks Cover | Restock Needed | (ulang)
-    //
-    // Strategi: baca baris header 1 untuk tahu posisi week-number,
-    //           baca baris header 2 untuk tahu posisi sub-kolom,
-    //           ambil week terbesar (paling kanan) sebagai data terkini.
-
-    const intakeMap = {};
-
-    // Temukan baris yang mengandung angka week (isoweek) di header baris 1
-    // Cirinya: kolom B = "SKU" dan ada kolom berisi angka 1-53
-    let weekHeaderRow = -1;
-    let dataSubHeaderRow = -1;
-    for (let i = 0; i < Math.min(intakeRows.length, 10); i++) {
-      const r = intakeRows[i];
-      const hasSkuCol = r.some(c => /sku|product code/i.test(c));
-      const hasWeekNum = r.some(c => /^\d{1,2}$/.test((c||'').trim()) && parseInt(c) >= 1 && parseInt(c) <= 53);
-      if (hasSkuCol && hasWeekNum) { weekHeaderRow = i; break; }
-    }
-
-    if (weekHeaderRow >= 0) {
-      // Baris sub-header (baris berikutnya: Avail Stock, Sum Sale, dll)
-      dataSubHeaderRow = weekHeaderRow + 1;
-      const wRow  = intakeRows[weekHeaderRow];
-      const sRow  = (dataSubHeaderRow < intakeRows.length) ? intakeRows[dataSubHeaderRow] : [];
-
-      // Temukan kolom SKU (kolom B = index 1)
-      let iSku = 1;
-      for (let c = 0; c < wRow.length; c++) {
-        if (/sku|product code/i.test((wRow[c]||'').trim())) { iSku = c; break; }
-      }
-
-      // Kumpulkan semua week-block: { weekNum, startCol }
-      // Setiap week-block dimulai dari kolom yang berisi angka isoweek
-      const weekBlocks = [];
-      for (let c = 0; c < wRow.length; c++) {
-        const val = (wRow[c] || '').trim();
-        if (/^\d{1,2}$/.test(val)) {
-          const wn = parseInt(val);
-          if (wn >= 1 && wn <= 53) weekBlocks.push({ weekNum: wn, startCol: c });
-        }
-      }
-
-      if (weekBlocks.length > 0) {
-        // Ambil week terbesar = data terkini
-        weekBlocks.sort((a, b) => b.weekNum - a.weekNum);
-        const latestBlock = weekBlocks[0];
-        const base = latestBlock.startCol;
-
-        // Dalam setiap block: base+0=Avail Stock, base+1=Sum Sale, base+2=Avg Sale 5Wk, base+3=Wks Cover, base+4=Restock Needed
-        // Konfirmasi dari sub-header jika ada
-        let oAvail=0, oSum=1, oAvg5w=2, oWc=3, oRestock=4;
-        if (sRow.length > base + 4) {
-          for (let d = 0; d <= 4; d++) {
-            const lbl = (sRow[base + d] || '').toLowerCase();
-            if (/avail|stock/i.test(lbl))           oAvail   = d;
-            else if (/sum.*sale|total.*sale/i.test(lbl)) oSum = d;
-            else if (/avg.*5|5.*wk/i.test(lbl))     oAvg5w   = d;
-            else if (/wk.*cover|wks.*cover/i.test(lbl)) oWc  = d;
-            else if (/restock|needed/i.test(lbl))   oRestock = d;
-          }
-        }
-
-        // Baca data per SKU mulai dari baris setelah sub-header
-        const dataStartRow = dataSubHeaderRow + 1;
-        for (let i = dataStartRow; i < intakeRows.length; i++) {
-          const r = intakeRows[i];
-          const skuRaw = (r[iSku] || '').trim();
-          if (!skuRaw || skuRaw === '#') continue;
-          intakeMap[skuRaw.toUpperCase()] = {
-            avail   : parseID(r[base + oAvail]),
-            avg5w   : parseID(r[base + oAvg5w]),
-            wc      : parseID(r[base + oWc]),
-            restock : parseID(r[base + oRestock]),
-            // avg_2026 tidak ada di intake_control — gunakan sum_sale dari week terbaru sebagai proxy
-            avg_2026: parseID(r[base + oSum]),
-          };
-        }
+    // Find the data rows — header at row index with "Rank" text
+    let headerIdx = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].some(c => c.toLowerCase().includes('rank') || c.toLowerCase() === 'sku')) {
+        headerIdx = i; break;
       }
     }
 
-    // ── JOIN dashboard × intake_control by SKU ──
-    const parsed = Object.values(dashMap)
-      .sort((a, b) => a.rank - b.rank)
-      .filter(d => !EXCLUDED_SKU.has(d.sku.toUpperCase()))
-      .map(d => {
-        const key    = d.sku.toUpperCase();
-        const intake = intakeMap[key] || { avail:0, avg5w:0, wc:0, restock:0, avg_2026:0 };
+    let parsed = [];
+    if (headerIdx >= 0) {
+      const hdr = rows[headerIdx];
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r[1] || r[1].trim() === '') continue;
+        const skuVal = r[2] || r[1];
+        if (!skuVal || skuVal.trim() === '') continue;
         const obj = {
-          rank       : d.rank,
-          sku        : d.sku,
-          qty        : d.qty,
-          total_value: d.total_value,
-          avail      : intake.avail,
-          avg_2026   : intake.avg_2026,  // sum sale week terbaru dari intake
-          avg5w      : intake.avg5w,
-          wc         : intake.wc,
-          restock    : intake.restock,
+          rank: parseID(r[1]),
+          sku: skuVal.trim(),
+          qty: parseID(r[3]),
+          total_value: parseID(r[4]),
+          avail: parseID(r[5]),
+          avg_2026: parseID(r[6]),
+          avg5w: parseID(r[7]),
+          wc: parseID(r[8]),
+          restock: parseID(r[9])
         };
-        obj.condition      = deriveCondition(obj);
-        obj.rec_sales      = recSales(obj.condition);
+        obj.condition = deriveCondition(obj);
+        obj.rec_sales = recSales(obj.condition);
         obj.rec_purchasing = recPurchasing(obj.condition);
-        return obj;
-      });
+        parsed.push(obj);
+      }
+    }
 
-    if (parsed.length === 0)
-      throw new Error('Join data gagal — tidak ada SKU yang cocok antara dua tab.');
+    // If we couldn't parse structured data, try daily_sale tab
+    if (parsed.length === 0) {
+      throw new Error('Tidak dapat membaca data tabel. Pastikan sheet dapat diakses publik.');
+    }
 
     allData = parsed;
     document.getElementById('update-time').textContent = new Date().toLocaleString('id-ID', {
-      day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+      day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
     });
     applyFilters();
     renderAll();
@@ -732,7 +582,7 @@ async function loadData() {
         <div style="font-weight:600;color:#3D3830">Gagal memuat data</div>
         <div style="font-size:12px;color:#7A7068;max-width:400px;text-align:center">
           ${e.message}<br><br>
-          Pastikan Google Sheets diset ke <strong>"Anyone with the link can view"</strong>,
+          Pastikan Google Sheets diset ke <strong>"Anyone with the link can view"</strong>, 
           kemudian klik Refresh.
         </div>
         <button class="refresh-btn" style="background:var(--green-bold);margin-top:8px" onclick="loadData()">↻ Coba Lagi</button>
@@ -820,12 +670,11 @@ function renderAll() {
     const wcDisplay = wc === 0 ? '0.0' : wc === 9999 ? 'N/A' : wc.toFixed(1);
     return `
     <tr>
-      <td class="rank">${d.rank}</td>
+      <td class="rank">${startIdx + i + 1}</td>
       <td class="sku-cell">${d.sku}</td>
       <td class="num">${fmt(d.qty)}</td>
       <td class="num">${fmtRp(d.total_value)}</td>
       <td class="num">${fmt(d.avail)}</td>
-      <td class="num">${d.avg_2026.toFixed(1)}</td>
       <td class="num">${d.avg5w.toFixed(1)}</td>
       <td class="wc-cell">
         <div class="wc-wrap">
@@ -855,7 +704,7 @@ function renderAll() {
   }).join('');
 
   // Sort indicators
-  const cols = ['rank','sku','qty','total_value','avail','avg_2026','avg5w','wc','condition','restock'];
+  const cols = ['rank','sku','qty','total_value','avail','avg5w','wc','condition','restock'];
   const thClass = (c) => c === sortCol ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
 
   // Pagination
@@ -941,8 +790,7 @@ function renderAll() {
       <button class="filter-btn ${currentFilter==='D'?'active-d':''}" onclick="setFilter('D')">D Idle (${counts.D})</button>
     </div>
     <select class="sort-select" onchange="onSort(this.value)">
-      <option value="rank" ${sortCol==='rank'?'selected':''}>Sort: Revenue Rank ↑</option>
-      <option value="total_value" ${sortCol==='total_value'?'selected':''}>Sort: Revenue ↓</option>
+      <option value="total_value" ${sortCol==='total_value'?'selected':''}>Sort: Total Revenue</option>
       <option value="qty" ${sortCol==='qty'?'selected':''}>Sort: Qty Terjual</option>
       <option value="wc" ${sortCol==='wc'?'selected':''}>Sort: Weeks Cover</option>
       <option value="restock" ${sortCol==='restock'?'selected':''}>Sort: Restock Needed</option>
@@ -965,7 +813,6 @@ function renderAll() {
           <th class="${thClass('qty')}" onclick="toggleSort('qty')" style="text-align:right">Qty Sold</th>
           <th class="${thClass('total_value')}" onclick="toggleSort('total_value')" style="text-align:right">Revenue</th>
           <th class="${thClass('avail')}" onclick="toggleSort('avail')" style="text-align:right">Avail Stock</th>
-          <th class="${thClass('avg_2026')}" onclick="toggleSort('avg_2026')" style="text-align:right">Avg 2026</th>
           <th class="${thClass('avg5w')}" onclick="toggleSort('avg5w')" style="text-align:right">Avg 5W</th>
           <th class="${thClass('wc')}" onclick="toggleSort('wc')">Weeks Cover</th>
           <th class="${thClass('condition')}" onclick="toggleSort('condition')">Kondisi</th>
@@ -973,7 +820,7 @@ function renderAll() {
           <th>Rekomendasi</th>
         </tr>
       </thead>
-      <tbody>${tableRows || '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--text-muted)">Tidak ada data yang cocok</td></tr>'}</tbody>
+      <tbody>${tableRows || '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Tidak ada data yang cocok</td></tr>'}</tbody>
     </table>
     </div>
     ${totalPages > 1 ? `
@@ -1031,11 +878,7 @@ function renderAll() {
 // ── INTERACTION ──
 function setFilter(f) { currentFilter = f; applyFilters(); renderAll(); }
 function onSearch(v) { searchTerm = v; applyFilters(); renderAll(); }
-function onSort(col) {
-  sortCol = col;
-  sortDir = (col === 'rank' || col === 'wc') ? 'asc' : 'desc';
-  applyFilters(); renderAll();
-}
+function onSort(col) { sortCol = col; applyFilters(); renderAll(); }
 function goPage(p) {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   if (p < 1 || p > totalPages) return;
