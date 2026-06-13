@@ -294,68 +294,102 @@ function calcMetrics(saleBySku, stockBySku, skuList) {
     const qtyYtd = salesAll.reduce((s, r) => s + r.qty, 0);
     const revYtd = salesAll.reduce((s, r) => s + r.rev, 0);
 
-    // ── Avg Sale 5Wk (hanya 5 minggu penuh terakhir) ──
-    const qty5w = salesAll
-      .filter(r => r.date >= w5Start && r.date <= w5End)
-      .reduce((s, r) => s + r.qty, 0);
-    const avg5w = qty5w / 5;
+    // ── Avg Sale 5Wk (5 minggu penuh terakhir) ──
+    const sales5w = salesAll.filter(r => r.date >= w5Start && r.date <= w5End);
+    const qty5w   = sales5w.reduce((s, r) => s + r.qty, 0);
+    const avg5w   = qty5w / 5;
 
     // ── Avg Sale 2026 (rata-rata per minggu seluruh tahun) ──
-    // Jumlah minggu yang sudah berlalu sejak awal 2026
-    const jan1 = new Date('2026-01-05'); // Senin pertama 2026 (W2)
+    const jan1 = new Date('2026-01-05');
     const weeksElapsed = Math.max(1, Math.floor((w5End - jan1) / (7 * 24 * 3600 * 1000)));
     const avg2026 = qtyYtd / weeksElapsed;
 
+    // ── Idle weeks: berapa minggu penuh berturut-turut tanpa penjualan ──
+    // Dihitung mundur dari minggu terbaru. Berhenti saat pertama ada penjualan.
+    let idleWeeks = 0;
+    const MS_WEEK = 7 * 24 * 3600 * 1000;
+    for (let w = 0; w < 26; w++) {
+      const wkEnd   = new Date(w5End.getTime() - w * MS_WEEK);
+      const wkStart = new Date(wkEnd.getTime() - MS_WEEK + 1);
+      const hasQty  = salesAll.some(r => r.date >= wkStart && r.date <= wkEnd && r.qty > 0);
+      if (!hasQty) idleWeeks++;
+      else break;
+    }
+
+    // ── Stok kosong selama 5 pekan terakhir (stockout-driven idle) ──
+    const stkAll   = stockBySku[sku] || [];
+    const stkIn5w  = stkAll.filter(r => r.date >= w5Start && r.date <= w5End);
+    const stockout5w = stkIn5w.length > 0 && stkIn5w.every(r => r.stock === 0);
+
     // ── Avail Stock (snapshot terbaru) ──
-    const stockRows = stockBySku[sku] || [];
     let avail = 0;
-    if (stockRows.length > 0) {
-      stockRows.sort((a, b) => b.date - a.date);
-      avail = stockRows[0].stock;
+    if (stkAll.length > 0) {
+      stkAll.sort((a, b) => b.date - a.date);
+      avail = stkAll[0].stock;
     }
 
     // ── Weeks Cover ──
     const wc = avg5w > 0 ? avail / avg5w : (avail > 0 ? 9999 : 0);
 
     // ── Restock Needed ──
-    // Target = avg5w × WC_AMAN (12 minggu stok aman)
     const targetStock = avg5w * WC_AMAN;
     const restock = avg5w > 0 ? Math.max(0, Math.ceil(targetStock - avail)) : 0;
 
-    result[sku] = { qtyYtd, revYtd, avg5w, avg2026, avail, wc, restock };
+    result[sku] = { qtyYtd, revYtd, avg5w, avg2026, avail, wc, restock, idleWeeks, stockout5w };
   }
   return result;
 }
 
 // ═══════════════════════════════════════════════════════
-// LOGIKA KONDISI
+// LOGIKA KONDISI (final)
 //
-// D (Idle)      : stok ADA, tidak pernah terjual (qty YTD < 10)
-// C (Replenish) : ada riwayat penjualan TAPI stok habis atau WC kritis
-//                 ATAU avg5w turun tajam vs avg2026 (stockout-driven)
-// B (Push)      : WC > 12 → stok berlebih
+// D (Idle)      : stok ADA + tidak ada penjualan ≥5 pekan berturut-turut
+//                 + bukan karena stockout (demand benar-benar tidak ada)
+//                 + SKU bukan prefix acc- atau daftar exclude lainnya
+//
+// C (Replenish) : pernah ada penjualan tahun ini TAPI:
+//                 - stok kosong sekarang, ATAU
+//                 - idle 5w tapi disebabkan stockout (stok kosong di 5w tsb), ATAU
+//                 - WC kritis (< 2), ATAU
+//                 - avg5w drop tajam vs avg2026 + WC kritis
+//
+// B (Push)      : WC > 12 → stok berlebih vs kecepatan jual
 // A (Maintain)  : kondisi sehat
 // ═══════════════════════════════════════════════════════
-function deriveCondition(m) {
-  const { avg5w, avg2026, avail, wc, qtyYtd } = m;
-  const demandAda = qtyYtd >= 10; // pernah terjual tahun ini
+function isExcludedFromIdle(sku) {
+  const u = sku.toUpperCase();
+  // Prefix acc- = barang setengah jadi aksesoris
+  if (u.startsWith('ACC-')) return true;
+  // Daftar exclude spesifik
+  return EXCLUDED.has(u);
+}
 
-  // D: stok ada tapi tidak pernah terjual
-  if (!demandAda && avail > 0) return 'D';
+function deriveCondition(m, sku) {
+  const { avg5w, avg2026, avail, wc, qtyYtd, idleWeeks, stockout5w } = m;
+  const pernahTerjual = qtyYtd >= 10; // ada riwayat penjualan di 2026
 
-  // C: demand ada tapi stok tidak cukup
-  if (demandAda) {
-    if (avail === 0) return 'C';                          // sudah stockout
-    if (wc > 0 && wc < WC_KRITIS) return 'C';            // hampir habis
-    // Stockout-driven: avg5w < 30% dari avg2026 dan stok kritis
-    if (avg5w > 0 && avg2026 > 0 &&
-        (avg5w / avg2026) < 0.3 && wc <= WC_KRITIS) return 'C';
+  // ── C: demand ada tapi stok tidak cukup ──
+  if (pernahTerjual) {
+    // Stok kosong sekarang
+    if (avail === 0) return 'C';
+    // Idle 5 pekan tapi karena stockout → demand masih ada, bukan idle
+    if (idleWeeks >= 5 && stockout5w) return 'C';
+    // WC sangat kritis
+    if (wc > 0 && wc < WC_KRITIS) return 'C';
+    // Drop tajam avg5w vs avg2026 + WC kritis → stockout-driven
+    if (avg5w > 0 && avg2026 > 0 && (avg5w / avg2026) < 0.3 && wc <= WC_KRITIS) return 'C';
   }
 
-  // B: stok berlebih
+  // ── D: stok ada, idle ≥5 pekan, demand tidak ada ──
+  // Bukan karena stockout, bukan SKU exclude
+  if (avail > 0 && idleWeeks >= 5 && !stockout5w && !isExcludedFromIdle(sku)) return 'D';
+  // Tidak pernah terjual sama sekali sepanjang 2026 + stok ada
+  if (avail > 0 && !pernahTerjual && !isExcludedFromIdle(sku)) return 'D';
+
+  // ── B: stok berlebih ──
   if (avg5w > 0 && wc > WC_AMAN) return 'B';
 
-  // A: sehat (termasuk SKU yang belum ada stok dan tidak pernah terjual → skip ke D sudah dihandle)
+  // ── A: sehat ──
   return 'A';
 }
 
@@ -472,7 +506,7 @@ async function loadData() {
       .sort((a, b) => rankMap[a] - rankMap[b])
       .map(sku => {
         const m = metrics[sku];
-        const cond = deriveCondition(m);
+        const cond = deriveCondition(m, sku);
         return {
           rank       : rankMap[sku],
           sku        : sku,
