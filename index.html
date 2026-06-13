@@ -472,7 +472,7 @@ function deriveCondition(row) {
   if (avg5w === 0 && avg_2026 >= AVG26_MIN) return 'C';
 
   // C: penurunan tajam avg5w vs avg2026 + WC kritis → stockout-driven drop
-  if (avg5w > 0 && avg_2026 > 0 && (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C';
+  if(d.wc===0 && d.avg5w>0)     return 'C';
 
   // C: WC sangat kritis
   if (wc > 0 && wc < WC_KRITIS) return 'C';
