@@ -497,8 +497,6 @@ function deriveCondition(row) {
   // ── C (Replenish): demand ada tapi stok tidak cukup ──
   if (demandAda && avail === 0)                          return 'C'; // stockout
   if (demandAda && wc > 0 && wc < WC_KRITIS)            return 'C'; // hampir habis
-  if (demandAda && avg5w > 0 && avg_2026 > 0 &&
-      (avg5w / avg_2026) < DROP_RATIO && wc <= WC_KRITIS) return 'C'; // drop tajam
 
   // ── B (Push): stok berlebih ──
   if(wc>WC_IDLE) return 'B';
